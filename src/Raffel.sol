@@ -32,7 +32,6 @@ pragma solidity ^0.8.19;
  *          logic is not yet implemented.
  */
 contract Raffle {
-
     /* ─────────────────────────────────────────────
      * Custom Errors
      * ─────────────────────────────────────────────
@@ -100,9 +99,7 @@ contract Raffle {
      * @dev    TODO: Implement Chainlink VRF v2.5 to request a verifiably
      *         random number, then use it to select and pay out the winner.
      */
-    function pickWinner() public {
-
-    }
+    function pickWinner() public {}
 
     /* ─────────────────────────────────────────────
      * Getter Functions
