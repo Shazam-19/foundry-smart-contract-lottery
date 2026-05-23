@@ -22,6 +22,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+// Use CTRL + Left Mouse Click on the contract name to go to the contract file
+import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+
+
 /**
  * @title   Raffle
  * @author  Abdelrahman Sayed
@@ -31,7 +35,7 @@ pragma solidity ^0.8.19;
  *          This contract is currently under development — winner selection
  *          logic is not yet implemented.
  */
-contract Raffle {
+contract Raffle is VRFConsumerBaseV2Plus{
     /* ─────────────────────────────────────────────
      * Custom Errors
      * ─────────────────────────────────────────────
@@ -98,13 +102,17 @@ contract Raffle {
     * @param interval      The minimum time (in seconds) that must
     *                      elapse between raffle rounds.
     */
-    constructor(uint256 enteranceFee, uint256 interval) {
+    constructor(uint256 enteranceFee, uint256 interval, address vrfCoordinator) 
+    VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_enteranceFee = enteranceFee;
         i_interval = interval;
 
         // Start the clock for the first round at the moment of deployment.
         // All future interval checks will measure time elapsed from this point.
         s_lastTimeStamp = block.timestamp;
+
+        // Inherited variable from VRFConsumerBaseV2Plus
+        s_vrfCoordinator.requestRandomWords();
     }
 
     /**
@@ -166,7 +174,25 @@ contract Raffle {
         // TODO: Request a verifiably random number from Chainlink VRF v2.5.
         // The random number will be used in a callback function to select
         // and pay out the winner.
+        // Get a random number 2.5
+        // 1. Request RNG - we send the request
+        // 2. Get RNG - chanlink node give us the random number
+        /*
+        requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: s_keyHash,
+                subId: s_subscriptionId,
+                requestConfirmations: requestConfirmations,
+                callbackGasLimit: callbackGasLimit,
+                numWords: numWords,
+                // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
+                extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+            })
+        );
+        */
     }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {}
 
     /* ─────────────────────────────────────────────
      * Getter Functions
