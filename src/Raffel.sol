@@ -53,6 +53,11 @@ contract Raffle {
      */
     uint256 private immutable i_enteranceFee;
 
+    address payable[] private s_player;
+
+    /** Events */
+    event RaffleEnterd(address indexed player);
+
     /* ─────────────────────────────────────────────
      * Constructor
      * ─────────────────────────────────────────────
@@ -92,6 +97,13 @@ contract Raffle {
         if (msg.value < i_enteranceFee) {
             revert Raffle_SendMoreToEnterRaffle();
         }
+
+        s_player.push(payable(msg.sender));
+
+        // Events benifits
+        // 1. Makes migration easier
+        // 2. Makes front end "indexing" easier
+        emit RaffleEnterd(msg.sender);
     }
 
     /**
