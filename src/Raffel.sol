@@ -25,7 +25,6 @@ pragma solidity ^0.8.19;
 // Use CTRL + Left Mouse Click on the contract name to go to the contract file
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 
-
 /**
  * @title   Raffle
  * @author  Abdelrahman Sayed
@@ -35,7 +34,7 @@ import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFCo
  *          This contract is currently under development — winner selection
  *          logic is not yet implemented.
  */
-contract Raffle is VRFConsumerBaseV2Plus{
+contract Raffle is VRFConsumerBaseV2Plus {
     /* ─────────────────────────────────────────────
      * Custom Errors
      * ─────────────────────────────────────────────
@@ -102,8 +101,7 @@ contract Raffle is VRFConsumerBaseV2Plus{
     * @param interval      The minimum time (in seconds) that must
     *                      elapse between raffle rounds.
     */
-    constructor(uint256 enteranceFee, uint256 interval, address vrfCoordinator) 
-    VRFConsumerBaseV2Plus(vrfCoordinator) {
+    constructor(uint256 enteranceFee, uint256 interval, address vrfCoordinator) VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_enteranceFee = enteranceFee;
         i_interval = interval;
 
