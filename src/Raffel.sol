@@ -22,8 +22,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-// Use CTRL + Left Mouse Click on the contract name to go to the contract file
+
+
+
+
+
+// ── Chainlink VRF Imports ──────────────────────────────────────────────────
+// Tip: CTRL + Left Click on a contract name to navigate to its source file.
+
+// Provides the base contract for Chainlink VRF v2.5 consumers.
+// Raffle must inherit from this to receive random numbers via fulfillRandomWords().
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+
+// Provides the RandomWordsRequest struct and helper utilities used to
+// build and encode the randomness request sent to the VRF coordinator.
+import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+
+
+
+
+
 
 /**
  * @title   Raffle
@@ -35,6 +53,7 @@ import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFCo
  *          logic is not yet implemented.
  */
 contract Raffle is VRFConsumerBaseV2Plus {
+
     /* ─────────────────────────────────────────────
      * Custom Errors
      * ─────────────────────────────────────────────
@@ -44,35 +63,77 @@ contract Raffle is VRFConsumerBaseV2Plus {
      */
     error Raffle_SendMoreToEnterRaffle();
 
+
+
+
+
+
     /* ─────────────────────────────────────────────
      * State Variables
      * ─────────────────────────────────────────────
-     * The `immutable` keyword means the variable is set
-     * once in the constructor and can never be changed.
-     * It is more gas-efficient than a regular storage variable
-     * because it is embedded directly into the contract bytecode.
+     * Three storage types are used here, each with its own prefix convention:
      *
-     * The `i_` prefix is a naming convention for immutable variables.
+     *   constant  (no prefix needed) — value fixed at compile time, cheapest to access.
+     *   immutable (i_ prefix)        — set once in the constructor, baked into bytecode.
+     *   storage   (s_ prefix)        — lives on the blockchain, can change over time.
+     *
+     * Both `constant` and `immutable` are more gas-efficient than regular
+     * storage variables because they are embedded directly into the contract
+     * bytecode rather than stored in a dedicated storage slot.
      */
+
+    // ── VRF Configuration ──────────────────────────────────────────────────
+    
+    // Number of block confirmations Chainlink waits before sending the random result.
+    // 3 is the recommended minimum — higher values increase security but slow response.
+    uint16 private constant REQUEST_CONFIRMATIONS = 3;
+
+    // The gas lane key hash — identifies which Chainlink VRF job to use and sets
+    // the maximum gas price (in wei) you are willing to pay for the callback.
+    // Different networks and gas lanes have different key hashes.
+    bytes32 private immutable i_keyHash;
+
+    // The Chainlink subscription ID that funds VRF requests for this contract.
+    // Created and funded via https://vrf.chain.link before deployment.
+    uint256 private immutable i_subscriptionId;
+
+    // Maximum gas the fulfillRandomWords() callback is allowed to consume.
+    // If the callback exceeds this limit, the transaction reverts.
+    // Set this based on the complexity of your fulfillRandomWords() logic.
+    uint32 private immutable i_callBackGasLimit;
+
+    // Number of random values to request from Chainlink VRF per round.
+    // We only need 1 — a single random number is enough to pick a winner.
+    uint32 private constant NUM_WORDS = 1;
+
+    // ── Raffle Configuration ───────────────────────────────────────────────
+
+    // The minimum amount of ETH (in wei) a user must send to enter the raffle.
     uint256 private immutable i_enteranceFee;
 
-    /* s_ prefix is a naming convention for storage variables,
-    * variables that are permanently stored on the blockchain.
-    *
-    * This is a dynamic array of payable addresses, one per entrant.
-    * `payable` is required because we need to be able to send ETH
-    * to the winner's address when `pickWinner()` runs.
-    */
-    address payable[] private s_players;
-
-    // The minimum time (in seconds) that must pass between each raffle round.
-    // Set once at deployment and never changed.
+    // The minimum time (in seconds) that must elapse between raffle rounds.
+    // Prevents a new round from being triggered too soon after the last one.
     uint256 private immutable i_interval;
 
-    // Stores the block timestamp of the last time a winner was picked
-    // (or the deployment time for the very first round).
-    // Used to enforce the interval between rounds.
+    // ── Raffle State ───────────────────────────────────────────────────────
+
+    // Dynamic array of all current entrants' addresses.
+    // Declared `payable` so ETH can be transferred directly to the winner's address.
+    // Reset at the start of each new round.
+    address payable[] private s_players;
+
+    // The block timestamp of the last round's completion (or deployment for round 1).
+    // Compared against block.timestamp in pickWinner() to enforce i_interval.
     uint256 private s_lastTimeStamp;
+
+
+
+
+
+
+
+
+
 
     /* Events
     *
@@ -89,6 +150,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
     */
     event RaffleEntered(address indexed player);
 
+
+
+
+
+
     /* ─────────────────────────────────────────────
     * Constructor
     * ─────────────────────────────────────────────
@@ -101,7 +167,14 @@ contract Raffle is VRFConsumerBaseV2Plus {
     * @param interval      The minimum time (in seconds) that must
     *                      elapse between raffle rounds.
     */
-    constructor(uint256 enteranceFee, uint256 interval, address vrfCoordinator) VRFConsumerBaseV2Plus(vrfCoordinator) {
+    constructor(
+        uint256 enteranceFee,
+        uint256 interval,
+        address vrfCoordinator,
+        bytes32 gasLane,
+        uint256 subscriptionId,
+        uint32 callBackGasLimit
+    ) VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_enteranceFee = enteranceFee;
         i_interval = interval;
 
@@ -109,9 +182,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // All future interval checks will measure time elapsed from this point.
         s_lastTimeStamp = block.timestamp;
 
-        // Inherited variable from VRFConsumerBaseV2Plus
-        s_vrfCoordinator.requestRandomWords();
+        i_keyHash = gasLane;
+        i_subscriptionId = subscriptionId;
+        i_callBackGasLimit = callBackGasLimit;
     }
+
+
+
+
+
 
     /**
      * @notice Enters the caller into the raffle.
@@ -151,15 +230,18 @@ contract Raffle is VRFConsumerBaseV2Plus {
         emit RaffleEntered(msg.sender);
     }
 
+
+
+
+
+
     /**
-     * @notice Picks a winner from the current pool of entrants.
-     * @dev    Enforces a minimum time interval between rounds before
-     *         requesting randomness from Chainlink VRF.
-     *         Steps:
-     *           1. Verify enough time has elapsed since the last round.
-     *           2. Request a random number from Chainlink VRF v2.5.
-     *           3. Use the random number to select a winner.
-     *           4. Transfer the prize and reset the raffle state.
+     * @notice Initiates the winner selection process for the current raffle round.
+     * @dev    Enforces a minimum time interval between rounds, then requests a
+     *         verifiably random number from Chainlink VRF v2.5.
+     *         The two-step process:
+     *           1. [This function] Verify elapsed time → request randomness from Chainlink.
+     *           2. [fulfillRandomWords] Receive randomness → select winner → pay out prize.
      */
     function pickWinner() external {
         // Revert if not enough time has passed since the last round.
@@ -169,28 +251,57 @@ contract Raffle is VRFConsumerBaseV2Plus {
             revert();
         }
 
-        // TODO: Request a verifiably random number from Chainlink VRF v2.5.
-        // The random number will be used in a callback function to select
-        // and pay out the winner.
-        // Get a random number 2.5
-        // 1. Request RNG - we send the request
-        // 2. Get RNG - chanlink node give us the random number
-        /*
-        requestId = s_vrfCoordinator.requestRandomWords(
+        // Request a random number from Chainlink VRF v2.5.
+        // This is Step 1 of 2 — we send the request and receive a requestId.
+        // Chainlink's oracle node will later call fulfillRandomWords() with the result.
+        // Note: The subscription must be funded with LINK (or ETH if nativePayment is true)
+        //       or this call will revert.
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
-                keyHash: s_keyHash,
-                subId: s_subscriptionId,
-                requestConfirmations: requestConfirmations,
-                callbackGasLimit: callbackGasLimit,
-                numWords: numWords,
-                // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
+                // The gas lane key hash — determines the max gas price for the VRF callback.
+                keyHash: i_keyHash,
+                // The Chainlink subscription ID that funds this request.
+                subId: i_subscriptionId,
+                // How many block confirmations Chainlink waits before responding.
+                // More confirmations = more security, but slower response.
+                requestConfirmations: REQUEST_CONFIRMATIONS,
+                // Max gas the callback function (fulfillRandomWords) is allowed to use.
+                callbackGasLimit: i_callBackGasLimit,
+                // How many random numbers to request (we only need 1 to pick a winner).
+                numWords: NUM_WORDS,
+                // nativePayment: false → pay the VRF fee in LINK.
+                // Set to true to pay in native ETH (e.g. Sepolia ETH on testnet).
                 extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
             })
         );
-        */
     }
 
+
+
+
+
+
+    /**
+     * @notice Callback function invoked by the Chainlink VRF node with the random result.
+     * @dev    This is Step 2 of 2 in the VRF process. Chainlink calls this automatically
+     *         after fulfilling the request made in pickWinner().
+     *         This function must:
+     *           1. Use randomWords[0] to select a winner from s_players.
+     *           2. Transfer the full contract balance to the winner.
+     *           3. Reset s_players and s_lastTimeStamp for the next round.
+     *
+     * @param requestId   The ID of the fulfilled VRF request (can be used for tracking).
+     * @param randomWords Array of random values returned by Chainlink.
+     *                    randomWords[0] is used to derive the winning index.
+     *
+     * TODO: Implement winner selection, payout, and state reset logic.
+     */
     function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {}
+
+
+
+
+
 
     /* ─────────────────────────────────────────────
      * Getter Functions
