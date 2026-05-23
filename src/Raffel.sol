@@ -53,22 +53,58 @@ contract Raffle {
      */
     uint256 private immutable i_enteranceFee;
 
-    address payable[] private s_player;
+    /* s_ prefix is a naming convention for storage variables,
+    * variables that are permanently stored on the blockchain.
+    *
+    * This is a dynamic array of payable addresses, one per entrant.
+    * `payable` is required because we need to be able to send ETH
+    * to the winner's address when `pickWinner()` runs.
+    */
+    address payable[] private s_players;
 
-    /** Events */
-    event RaffleEnterd(address indexed player);
+    // The minimum time (in seconds) that must pass between each raffle round.
+    // Set once at deployment and never changed.
+    uint256 private immutable i_interval;
+
+    // Stores the block timestamp of the last time a winner was picked
+    // (or the deployment time for the very first round).
+    // Used to enforce the interval between rounds.
+    uint256 private s_lastTimeStamp;
+
+    /* Events
+    *
+    * Events are signals emitted by the contract that get logged on the blockchain.
+    * They are NOT stored in contract storage, making them gas-efficient.
+    *
+    * Two key benefits:
+    *   1. Easier contract migration —> external systems can replay history via logs.
+    *   2. Easier front-end indexing —> tools like The Graph or ethers.js can
+    *      listen for and react to events in real time.
+    *
+    * The `indexed` keyword on `player` allows this field to be efficiently
+    * searched and filtered in event logs (up to 3 parameters can be indexed).
+    */
+    event RaffleEntered(address indexed player);
 
     /* ─────────────────────────────────────────────
-     * Constructor
-     * ─────────────────────────────────────────────
-     * Runs once at deployment. Sets the entrance fee
-     * that all participants must pay to enter the raffle.
-     *
-     * @param enteranceFee  The minimum amount of ETH (in wei)
-     *                      required to enter the raffle.
-     */
-    constructor(uint256 enteranceFee) {
+    * Constructor
+    * ─────────────────────────────────────────────
+    * Runs exactly once at deployment. Initializes all
+    * immutable variables and sets the starting timestamp
+    * for the first raffle round.
+    *
+    * @param enteranceFee  The minimum amount of ETH (in wei)
+    *                      required to enter the raffle.
+    * @param interval      The minimum time (in seconds) that must
+    *                      elapse between raffle rounds.
+    */
+    constructor(uint256 enteranceFee, uint256 interval) {
         i_enteranceFee = enteranceFee;
+        i_interval = interval;
+
+        // Start the clock for the first round at the moment of deployment.
+        // All future interval checks will measure time elapsed from this point.
+        s_lastTimeStamp = block.timestamp;
     }
 
     /**
@@ -93,25 +129,44 @@ contract Raffle {
      *             Most gas-efficient option. Works reliably across 0.8.x versions.
      *             Slightly less readable than require, but preferred in production.
      */
-    function enterRaffle() public payable {
+    function enterRaffle() external payable {
         if (msg.value < i_enteranceFee) {
             revert Raffle_SendMoreToEnterRaffle();
         }
 
-        s_player.push(payable(msg.sender));
+        // Adds the caller's address to the players array.
+        // `payable(msg.sender)` casts the address to a payable type
+        // so ETH can be sent to it later when a winner is selected.
+        s_players.push(payable(msg.sender));
 
-        // Events benifits
-        // 1. Makes migration easier
-        // 2. Makes front end "indexing" easier
-        emit RaffleEnterd(msg.sender);
+        // Emits an event to log that a new player has entered.
+        // Front-end applications and indexers (e.g. The Graph) can
+        // listen for this event to update the UI in real time.
+        emit RaffleEntered(msg.sender);
     }
 
     /**
-     * @notice Selects a winner from the pool of raffle entrants.
-     * @dev    TODO: Implement Chainlink VRF v2.5 to request a verifiably
-     *         random number, then use it to select and pay out the winner.
+     * @notice Picks a winner from the current pool of entrants.
+     * @dev    Enforces a minimum time interval between rounds before
+     *         requesting randomness from Chainlink VRF.
+     *         Steps:
+     *           1. Verify enough time has elapsed since the last round.
+     *           2. Request a random number from Chainlink VRF v2.5.
+     *           3. Use the random number to select a winner.
+     *           4. Transfer the prize and reset the raffle state.
      */
-    function pickWinner() public {}
+    function pickWinner() external {
+        // Revert if not enough time has passed since the last round.
+        // Example: if i_interval = 50s and only 30s have passed → revert.
+        //          if i_interval = 50s and 100s have passed     → proceed.
+        if ((block.timestamp - s_lastTimeStamp) < i_interval) {
+            revert();
+        }
+
+        // TODO: Request a verifiably random number from Chainlink VRF v2.5.
+        // The random number will be used in a callback function to select
+        // and pay out the winner.
+    }
 
     /* ─────────────────────────────────────────────
      * Getter Functions
