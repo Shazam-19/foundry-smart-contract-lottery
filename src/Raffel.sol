@@ -22,11 +22,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-
-
-
-
-
 // ── Chainlink VRF Imports ──────────────────────────────────────────────────
 // Tip: CTRL + Left Click on a contract name to navigate to its source file.
 
@@ -38,11 +33,6 @@ import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFCo
 // build and encode the randomness request sent to the VRF coordinator.
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
-
-
-
-
-
 /**
  * @title   Raffle
  * @author  Abdelrahman Sayed
@@ -53,7 +43,6 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
  *          logic is not yet implemented.
  */
 contract Raffle is VRFConsumerBaseV2Plus {
-
     /* ─────────────────────────────────────────────
      * Custom Errors
      * ─────────────────────────────────────────────
@@ -62,11 +51,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * debugging multi-contract systems.
      */
     error Raffle_SendMoreToEnterRaffle();
-
-
-
-
-
 
     /* ─────────────────────────────────────────────
      * State Variables
@@ -83,7 +67,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
      */
 
     // ── VRF Configuration ──────────────────────────────────────────────────
-    
+
     // Number of block confirmations Chainlink waits before sending the random result.
     // 3 is the recommended minimum — higher values increase security but slow response.
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
@@ -126,15 +110,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // Compared against block.timestamp in pickWinner() to enforce i_interval.
     uint256 private s_lastTimeStamp;
 
-
-
-
-
-
-
-
-
-
     /* Events
     *
     * Events are signals emitted by the contract that get logged on the blockchain.
@@ -150,23 +125,42 @@ contract Raffle is VRFConsumerBaseV2Plus {
     */
     event RaffleEntered(address indexed player);
 
-
-
-
-
-
     /* ─────────────────────────────────────────────
-    * Constructor
-    * ─────────────────────────────────────────────
-    * Runs exactly once at deployment. Initializes all
-    * immutable variables and sets the starting timestamp
-    * for the first raffle round.
-    *
-    * @param enteranceFee  The minimum amount of ETH (in wei)
-    *                      required to enter the raffle.
-    * @param interval      The minimum time (in seconds) that must
-    *                      elapse between raffle rounds.
-    */
+     * Constructor
+     * ─────────────────────────────────────────────
+     * Runs exactly once at deployment. Initializes all immutable
+     * variables and starts the interval clock for the first round.
+     *
+     * Inherits from VRFConsumerBaseV2Plus, which requires the VRF
+     * coordinator address to be passed up via its own constructor.
+     *
+     * @param enteranceFee    The minimum amount of ETH (in wei) required to enter.
+     * @param interval        The minimum time (in seconds) between raffle rounds.
+     *
+     * @param vrfCoordinator  The address of the Chainlink VRF Coordinator contract
+     *                        on the deployed network. This is the on-chain contract
+     *                        that handles randomness requests and delivers results.
+     *                        Passed directly to the VRFConsumerBaseV2Plus parent constructor.
+     *
+     * @param gasLane         The key hash of the VRF gas lane to use. Acts as an ID
+     *                        for the off-chain VRF job that responds to requests.
+     *                        Also defines the maximum gas price (in wei) you are
+     *                        willing to pay for a randomness request. Different
+     *                        networks offer multiple gas lanes at different price caps.
+     *
+     * @param subscriptionId  The Chainlink subscription ID used to fund VRF requests.
+     *                        The subscription must be created and topped up with LINK
+     *                        (or ETH if using nativePayment) at https://vrf.chain.link
+     *                        before deployment, and this contract must be added as
+     *                        an approved consumer on that subscription.
+     *
+     * @param callBackGasLimit The maximum gas that fulfillRandomWords() is allowed
+     *                         to consume. Must be less than the coordinator's maxGasLimit.
+     *                         If the callback exceeds this limit it will fail — however,
+     *                         the subscription is still charged for the work done to
+     *                         generate the random values. Increase this value if your
+     *                         fulfillRandomWords() logic is complex or stores many values.
+     */
     constructor(
         uint256 enteranceFee,
         uint256 interval,
@@ -179,18 +173,13 @@ contract Raffle is VRFConsumerBaseV2Plus {
         i_interval = interval;
 
         // Start the clock for the first round at the moment of deployment.
-        // All future interval checks will measure time elapsed from this point.
+        // All future interval checks measure time elapsed from this point.
         s_lastTimeStamp = block.timestamp;
 
         i_keyHash = gasLane;
         i_subscriptionId = subscriptionId;
         i_callBackGasLimit = callBackGasLimit;
     }
-
-
-
-
-
 
     /**
      * @notice Enters the caller into the raffle.
@@ -229,11 +218,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // listen for this event to update the UI in real time.
         emit RaffleEntered(msg.sender);
     }
-
-
-
-
-
 
     /**
      * @notice Initiates the winner selection process for the current raffle round.
@@ -276,11 +260,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
         );
     }
 
-
-
-
-
-
     /**
      * @notice Callback function invoked by the Chainlink VRF node with the random result.
      * @dev    This is Step 2 of 2 in the VRF process. Chainlink calls this automatically
@@ -294,14 +273,10 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * @param randomWords Array of random values returned by Chainlink.
      *                    randomWords[0] is used to derive the winning index.
      *
-     * TODO: Implement winner selection, payout, and state reset logic.
+     * Why did we define this function as 'override'? Because in the main contract, it's defined as 'virtual',
+     * meaning that we will have to implement our own version of it.
      */
     function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {}
-
-
-
-
-
 
     /* ─────────────────────────────────────────────
      * Getter Functions
