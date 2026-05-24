@@ -46,11 +46,19 @@ contract Raffle is VRFConsumerBaseV2Plus {
     /* ─────────────────────────────────────────────
      * Custom Errors
      * ─────────────────────────────────────────────
-     * Prefixing errors with the contract name (Raffle_)
+     * Prefixing errors with the contract name (Raffle__)
      * makes it easy to identify the source contract when
      * debugging multi-contract systems.
      */
-    error Raffle_SendMoreToEnterRaffle();
+
+    // Thrown when a user attempts to enter the raffle without
+    // sending the minimum required ETH entrance fee.
+    error Raffle__SendMoreToEnterRaffle();
+
+    // Thrown when the ETH transfer to the winner fails.
+    // This can happen if the winner's address is a contract
+    // that does not accept ETH (i.e. has no receive() or fallback()).
+    error Raffle__TransferFailed();
 
     /* ─────────────────────────────────────────────
      * State Variables
@@ -109,6 +117,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // The block timestamp of the last round's completion (or deployment for round 1).
     // Compared against block.timestamp in pickWinner() to enforce i_interval.
     uint256 private s_lastTimeStamp;
+
+    // Stores the address of the most recently selected raffle winner.
+    // Updated at the end of each round inside fulfillRandomWords().
+    // Reset to address(0) at the start of each new round.
+    address private s_recentWinner;
 
     /* Events
     *
@@ -194,18 +207,18 @@ contract Raffle is VRFConsumerBaseV2Plus {
      *             Simple and readable, but storing the string wastes gas.
      *
      *         [2] require with custom error (introduced in Solidity 0.8.26):
-     *               require(msg.value >= i_enteranceFee, Raffle_SendMoreToEnterRaffle());
+     *               require(msg.value >= i_enteranceFee, Raffle__SendMoreToEnterRaffle());
      *             More gas-efficient than [1], but has limited compiler support
      *             and is not yet widely adopted.
      *
      *         [3] if/revert with custom error (current best practice):
-     *               if (msg.value < i_enteranceFee) revert Raffle_SendMoreToEnterRaffle();
+     *               if (msg.value < i_enteranceFee) revert Raffle__SendMoreToEnterRaffle();
      *             Most gas-efficient option. Works reliably across 0.8.x versions.
      *             Slightly less readable than require, but preferred in production.
      */
     function enterRaffle() external payable {
         if (msg.value < i_enteranceFee) {
-            revert Raffle_SendMoreToEnterRaffle();
+            revert Raffle__SendMoreToEnterRaffle();
         }
 
         // Adds the caller's address to the players array.
@@ -264,19 +277,46 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * @notice Callback function invoked by the Chainlink VRF node with the random result.
      * @dev    This is Step 2 of 2 in the VRF process. Chainlink calls this automatically
      *         after fulfilling the request made in pickWinner().
-     *         This function must:
-     *           1. Use randomWords[0] to select a winner from s_players.
-     *           2. Transfer the full contract balance to the winner.
-     *           3. Reset s_players and s_lastTimeStamp for the next round.
      *
-     * @param requestId   The ID of the fulfilled VRF request (can be used for tracking).
-     * @param randomWords Array of random values returned by Chainlink.
-     *                    randomWords[0] is used to derive the winning index.
+     *         Marked `internal` so only the VRF coordinator contract can trigger it,
+     *         and `override` because VRFConsumerBaseV2Plus defines it as `virtual`,
+     *         requiring us to provide our own implementation.
      *
-     * Why did we define this function as 'override'? Because in the main contract, it's defined as 'virtual',
-     * meaning that we will have to implement our own version of it.
+     *         Executes in order:
+     *           1. Derive a valid array index from the random number using modulo.
+     *           2. Select and store the winner.
+     *           3. Transfer the full contract balance to the winner.
+     *           4. Revert with a custom error if the transfer fails.
+     *           TODO: Reset s_players and s_lastTimeStamp for the next round.
+     *
+     * @param requestId   The ID of the fulfilled VRF request. Not used here but
+     *                    required by the parent contract's function signature.
+     * @param randomWords Array of random values returned by Chainlink VRF.
+     *                    Only randomWords[0] is used — one random number is enough
+     *                    to derive a winner index via modulo.
      */
-    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {}
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
+        // Use modulo to convert the large random number into a valid s_players index.
+        // Example: s_players.length = 10, randomWords[0] = 54464968745561265489741236776
+        //          54464968745561265489741236776 % 10 = 6 → player at index 6 wins.
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+
+        // Retrieve the winner's address from the players array and store it.
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+
+        // Transfer the entire contract balance to the winner.
+        // .call is the recommended way to send ETH — it forwards all available
+        // gas and returns a success bool rather than throwing on failure.
+        // The empty string ("") means we are sending ETH with no function call data.
+        (bool success,) = recentWinner.call{value: address(this).balance}("");
+
+        // If the transfer failed (e.g. winner is a contract that rejects ETH),
+        // revert the entire transaction to protect the funds.
+        if (!success) {
+            revert Raffle__TransferFailed();
+        }
+    }
 
     /* ─────────────────────────────────────────────
      * Getter Functions
