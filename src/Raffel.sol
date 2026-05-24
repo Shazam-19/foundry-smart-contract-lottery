@@ -60,6 +60,24 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // that does not accept ETH (i.e. has no receive() or fallback()).
     error Raffle__TransferFailed();
 
+    // Thrown when a user attempts to enter the raffle while it is in the
+    // CALCULATING state (i.e. a VRF request is in flight and the current
+    // round has not yet been resolved).
+    error Raffle__RaffleNotOpen();
+
+    /* ─────────────────────────────────────────────
+     * Type Declarations
+     * ─────────────────────────────────────────────
+     * Enums define a custom type with a fixed set of named states.
+     * Under the hood, Solidity stores them as uint8 (0, 1, 2...).
+     * Using an enum instead of raw numbers makes the code more
+     * readable and prevents invalid state assignments.
+     */
+    enum RaffleState {
+        OPEN, // 0 — The raffle is accepting new entrants.
+        CALCULATING // 1 — A VRF request is in flight; no new entrants allowed.
+    }
+
     /* ─────────────────────────────────────────────
      * State Variables
      * ─────────────────────────────────────────────
@@ -122,6 +140,12 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // Updated at the end of each round inside fulfillRandomWords().
     // Reset to address(0) at the start of each new round.
     address private s_recentWinner;
+
+    // Tracks the current state of the raffle.
+    // Initialized to OPEN (0) by default when the contract is deployed.
+    // Set to CALCULATING while waiting for Chainlink VRF to respond,
+    // then back to OPEN once the winner has been selected and paid.
+    RaffleState private s_raffleState;
 
     /* Events
     *
@@ -192,6 +216,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
         i_keyHash = gasLane;
         i_subscriptionId = subscriptionId;
         i_callBackGasLimit = callBackGasLimit;
+        s_raffleState = RaffleState.OPEN; // This is the same as RaffleState(0)
     }
 
     /**
@@ -221,6 +246,10 @@ contract Raffle is VRFConsumerBaseV2Plus {
             revert Raffle__SendMoreToEnterRaffle();
         }
 
+        if (s_raffleState != RaffleState.OPEN) {
+            revert Raffle__RaffleNotOpen();
+        }
+
         // Adds the caller's address to the players array.
         // `payable(msg.sender)` casts the address to a payable type
         // so ETH can be sent to it later when a winner is selected.
@@ -247,6 +276,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
         if ((block.timestamp - s_lastTimeStamp) < i_interval) {
             revert();
         }
+
+        s_raffleState = RaffleState.CALCULATING;
 
         // Request a random number from Chainlink VRF v2.5.
         // This is Step 1 of 2 — we send the request and receive a requestId.
@@ -310,6 +341,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // gas and returns a success bool rather than throwing on failure.
         // The empty string ("") means we are sending ETH with no function call data.
         (bool success,) = recentWinner.call{value: address(this).balance}("");
+
+        s_raffleState = RaffleState.OPEN;
 
         // If the transfer failed (e.g. winner is a contract that rejects ETH),
         // revert the entire transaction to protect the funds.
