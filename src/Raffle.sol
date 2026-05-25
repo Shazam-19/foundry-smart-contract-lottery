@@ -22,11 +22,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-
-
-
-
-
 // ── Chainlink VRF Imports ──────────────────────────────────────────────────
 // Tip: CTRL + Left Click on a contract name to navigate to its source file.
 
@@ -38,11 +33,6 @@ import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFCo
 // build and encode the randomness request sent to the VRF coordinator.
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
-
-
-
-
-
 /**
  * @title   Raffle
  * @author  Abdelrahman Sayed
@@ -53,7 +43,6 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
  *          logic is not yet implemented.
  */
 contract Raffle is VRFConsumerBaseV2Plus {
-
     /* ─────────────────────────────────────────────
      * Custom Errors
      * ─────────────────────────────────────────────
@@ -89,15 +78,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
     //   → balance is 0, no players, raffle is CALCULATING (1) → too early to pick
     error Raffle__UpkeepNotNeeded(uint256 balance, uint256 playersLength, uint256 RaffleState);
 
-
-
-
-
-
-
-
-
-    
     /* ─────────────────────────────────────────────
      * Type Declarations
      * ─────────────────────────────────────────────
@@ -107,18 +87,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * readable and prevents invalid state assignments.
      */
     enum RaffleState {
-        OPEN,       // 0 — The raffle is accepting new entrants.
+        OPEN, // 0 — The raffle is accepting new entrants.
         CALCULATING // 1 — A VRF request is in flight; no new entrants allowed.
     }
-
-
-
-
-
-
-
-
-
 
     /* ─────────────────────────────────────────────
      * State Variables
@@ -135,7 +106,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
      */
 
     // ── VRF Configuration ──────────────────────────────────────────────────
-    
+
     // Number of block confirmations Chainlink waits before sending the random result.
     // 3 is the recommended minimum — higher values increase security but slow response.
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
@@ -189,15 +160,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // then back to OPEN once the winner has been selected and paid.
     RaffleState private s_raffleState;
 
-
-
-
-
-
-
-
-
-
     /* ─────────────────────────────────────────────
      * Events
      * ─────────────────────────────────────────────
@@ -223,13 +185,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // Emitted when a winner is selected and paid at the end of a round.
     // Indexed on `winner` so front-ends can filter and display past winners.
     event WinnerPicked(address indexed winner);
-
-
-
-
-
-
-
 
     /* ─────────────────────────────────────────────
      * Constructor
@@ -288,16 +243,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
         s_raffleState = RaffleState.OPEN; // This is the same as RaffleState(0)
     }
 
-
-
-
-
-
-
-
-
-
-
     /**
      * @notice Enters the caller into the raffle.
      * @dev    The caller must send at least `i_enteranceFee` wei with
@@ -340,11 +285,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
         emit RaffleEntered(msg.sender);
     }
 
-
-
-
-
-
     /**
      * @notice Checks whether the raffle conditions are met to trigger upkeep.
      * @dev Called by Chainlink Automation nodes to determine whether
@@ -356,16 +296,21 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * - The contract must contain ETH.
      * - At least one player must have entered.
      *
-     * 
+     *
      * @return upkeepNeeded True if upkeep should be performed.
      * @return performData Encoded data to be passed to `performUpkeep()`.
      */
-    function checkUpkeep(bytes memory /* checkData */ )
-    // Declaring 'checkData' as 'calldata' type is more gas efficient than 'memory'
+    function checkUpkeep(
+        bytes memory /* checkData */
+    )
+        // Declaring 'checkData' as 'calldata' type is more gas efficient than 'memory'
         public
         view
         // `upkeepNeeded` is implicitly initialized through the named return variable declaration
-        returns (bool upkeepNeeded, bytes memory /* performData */)
+        returns (
+            bool upkeepNeeded,
+            bytes memory /* performData */
+        )
     {
         bool timeHasPassed = (block.timestamp - s_lastTimeStamp) >= i_interval;
 
@@ -379,14 +324,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
         return (upkeepNeeded, "");
     }
-
-
-
-
-
-
-
-
 
     /**
      * @notice Initiates the process of selecting a raffle winner.
@@ -405,10 +342,14 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * - At least one player must have entered.
      *
      */
-    function performUpkeep(bytes calldata /* performData */ ) external {
+    function performUpkeep(
+        bytes calldata /* performData */
+    )
+        external
+    {
         // Check that upkeep conditions for safety to initialize the lottery.
         // This prevents execution if conditions changed.
-        (bool upkeepNeeded, ) = checkUpkeep("");
+        (bool upkeepNeeded,) = checkUpkeep("");
 
         // Revert if upkeep is not required.
         if (!upkeepNeeded) {
@@ -446,15 +387,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
         requestId;
     }
 
-
-
-
-
-
-
-
-
-
     /**
      * @notice Callback function invoked by the Chainlink VRF node with the random result.
      * @dev    This is Step 2 of 2 in the VRF process. Chainlink calls this automatically
@@ -479,9 +411,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
      *                    to derive a winner index via modulo.
      */
     function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
-        /* Checks */ 
-        // Conditionals 
-
+        /* Checks */
+        // Conditionals
 
         /* Effect (Internal Contract State) */
 
@@ -508,7 +439,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // emitted value reflects what is actually stored in contract state.
         emit WinnerPicked(s_recentWinner);
 
-
         /* Interactions (External Contract Interactions) */
 
         // Transfer the entire contract balance to the winner.
@@ -526,15 +456,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // Prevent unused parameter warning
         requestId;
     }
-
-
-
-
-
-
-
-
-
 
     /* ─────────────────────────────────────────────
      * Getter Functions
@@ -554,47 +475,47 @@ contract Raffle is VRFConsumerBaseV2Plus {
     }
 }
 
-
-    /** Refactored this function and splitted it into checkUpkeep and pickWinner functions
-     * @notice Initiates the winner selection process for the current raffle round.
-     * @dev    Enforces a minimum time interval between rounds, then requests a
-     *         verifiably random number from Chainlink VRF v2.5.
-     *         The two-step process:
-     *           1. [This function] Verify elapsed time → request randomness from Chainlink.
-     *           2. [fulfillRandomWords] Receive randomness → select winner → pay out prize.
-    
-    function pickWinner() external {
-        // Revert if not enough time has passed since the last round.
-        // Example: if i_interval = 50s and only 30s have passed → revert.
-        //          if i_interval = 50s and 100s have passed     → proceed.
-        if ((block.timestamp - s_lastTimeStamp) < i_interval) {
-            revert();
-        }
-
-        s_raffleState = RaffleState.CALCULATING;
-
-        // Request a random number from Chainlink VRF v2.5.
-        // This is Step 1 of 2 — we send the request and receive a requestId.
-        // Chainlink's oracle node will later call fulfillRandomWords() with the result.
-        // Note: The subscription must be funded with LINK (or ETH if nativePayment is true)
-        //       or this call will revert.
-        uint256 requestId = s_vrfCoordinator.requestRandomWords(
-            VRFV2PlusClient.RandomWordsRequest({
-                // The gas lane key hash — determines the max gas price for the VRF callback.
-                keyHash: i_keyHash,
-                // The Chainlink subscription ID that funds this request.
-                subId: i_subscriptionId,
-                // How many block confirmations Chainlink waits before responding.
-                // More confirmations = more security, but slower response.
-                requestConfirmations: REQUEST_CONFIRMATIONS,
-                // Max gas the callback function (fulfillRandomWords) is allowed to use.
-                callbackGasLimit: i_callBackGasLimit,
-                // How many random numbers to request (we only need 1 to pick a winner).
-                numWords: NUM_WORDS,
-                // nativePayment: false → pay the VRF fee in LINK.
-                // Set to true to pay in native ETH (e.g. Sepolia ETH on testnet).
-                extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
-            })
-        );
-    }
-    */
+/**
+ * Refactored this function and splitted it into checkUpkeep and pickWinner functions
+ * @notice Initiates the winner selection process for the current raffle round.
+ * @dev    Enforces a minimum time interval between rounds, then requests a
+ *         verifiably random number from Chainlink VRF v2.5.
+ *         The two-step process:
+ *           1. [This function] Verify elapsed time → request randomness from Chainlink.
+ *           2. [fulfillRandomWords] Receive randomness → select winner → pay out prize.
+ *
+ * function pickWinner() external {
+ *     // Revert if not enough time has passed since the last round.
+ *     // Example: if i_interval = 50s and only 30s have passed → revert.
+ *     //          if i_interval = 50s and 100s have passed     → proceed.
+ *     if ((block.timestamp - s_lastTimeStamp) < i_interval) {
+ *         revert();
+ *     }
+ *
+ *     s_raffleState = RaffleState.CALCULATING;
+ *
+ *     // Request a random number from Chainlink VRF v2.5.
+ *     // This is Step 1 of 2 — we send the request and receive a requestId.
+ *     // Chainlink's oracle node will later call fulfillRandomWords() with the result.
+ *     // Note: The subscription must be funded with LINK (or ETH if nativePayment is true)
+ *     //       or this call will revert.
+ *     uint256 requestId = s_vrfCoordinator.requestRandomWords(
+ *         VRFV2PlusClient.RandomWordsRequest({
+ *             // The gas lane key hash — determines the max gas price for the VRF callback.
+ *             keyHash: i_keyHash,
+ *             // The Chainlink subscription ID that funds this request.
+ *             subId: i_subscriptionId,
+ *             // How many block confirmations Chainlink waits before responding.
+ *             // More confirmations = more security, but slower response.
+ *             requestConfirmations: REQUEST_CONFIRMATIONS,
+ *             // Max gas the callback function (fulfillRandomWords) is allowed to use.
+ *             callbackGasLimit: i_callBackGasLimit,
+ *             // How many random numbers to request (we only need 1 to pick a winner).
+ *             numWords: NUM_WORDS,
+ *             // nativePayment: false → pay the VRF fee in LINK.
+ *             // Set to true to pay in native ETH (e.g. Sepolia ETH on testnet).
+ *             extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+ *         })
+ *     );
+ * }
+ */

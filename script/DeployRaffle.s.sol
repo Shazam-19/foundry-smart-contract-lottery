@@ -8,5 +8,4 @@ contract DeployRaffle is Script {
     function run() public {}
 
     //function deployRaffle() public returns (Raffle, HelperConfig) {}
-    
 }
