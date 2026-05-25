@@ -147,20 +147,31 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // then back to OPEN once the winner has been selected and paid.
     RaffleState private s_raffleState;
 
-    /* Events
-    *
-    * Events are signals emitted by the contract that get logged on the blockchain.
-    * They are NOT stored in contract storage, making them gas-efficient.
-    *
-    * Two key benefits:
-    *   1. Easier contract migration —> external systems can replay history via logs.
-    *   2. Easier front-end indexing —> tools like The Graph or ethers.js can
-    *      listen for and react to events in real time.
-    *
-    * The `indexed` keyword on `player` allows this field to be efficiently
-    * searched and filtered in event logs (up to 3 parameters can be indexed).
-    */
+    /* ─────────────────────────────────────────────
+     * Events
+     * ─────────────────────────────────────────────
+     * Events are signals emitted by the contract that get logged on the
+     * blockchain. They are NOT stored in contract storage, making them
+     * significantly cheaper than updating a state variable.
+     *
+     * Two key benefits:
+     *   1. Easier contract migration — external systems can replay the full
+     *      history of a contract by reading its event logs.
+     *   2. Easier front-end indexing — tools like The Graph or ethers.js can
+     *      listen for and react to events in real time without polling.
+     *
+     * The `indexed` keyword allows a parameter to be efficiently searched
+     * and filtered in event logs (up to 3 parameters can be indexed per event).
+     * Non-indexed parameters are still logged but cannot be filtered directly.
+     */
+
+    // Emitted when a player successfully enters the raffle.
+    // Indexed on `player` so front-ends can filter entries by wallet address.
     event RaffleEntered(address indexed player);
+
+    // Emitted when a winner is selected and paid at the end of a round.
+    // Indexed on `winner` so front-ends can filter and display past winners.
+    event WinnerPicked(address indexed winner);
 
     /* ─────────────────────────────────────────────
      * Constructor
@@ -316,9 +327,10 @@ contract Raffle is VRFConsumerBaseV2Plus {
      *         Executes in order:
      *           1. Derive a valid array index from the random number using modulo.
      *           2. Select and store the winner.
-     *           3. Transfer the full contract balance to the winner.
-     *           4. Revert with a custom error if the transfer fails.
-     *           TODO: Reset s_players and s_lastTimeStamp for the next round.
+     *           3. Reset raffle state for the next round.
+     *           4. Transfer the full contract balance to the winner.
+     *           5. Revert with a custom error if the transfer fails.
+     *           6. Emit an event to log the winner.
      *
      * @param requestId   The ID of the fulfilled VRF request. Not used here but
      *                    required by the parent contract's function signature.
@@ -336,19 +348,30 @@ contract Raffle is VRFConsumerBaseV2Plus {
         address payable recentWinner = s_players[indexOfWinner];
         s_recentWinner = recentWinner;
 
+        // Reset the raffle state for the next round BEFORE transferring funds.
+        // Resetting state first follows the Checks-Effects-Interactions pattern,
+        // which protects against reentrancy attacks; if the transfer somehow
+        // triggered a reentrant call, the raffle state would already be clean.
+        s_raffleState = RaffleState.OPEN;
+        s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
+
         // Transfer the entire contract balance to the winner.
         // .call is the recommended way to send ETH — it forwards all available
         // gas and returns a success bool rather than throwing on failure.
         // The empty string ("") means we are sending ETH with no function call data.
         (bool success,) = recentWinner.call{value: address(this).balance}("");
 
-        s_raffleState = RaffleState.OPEN;
-
         // If the transfer failed (e.g. winner is a contract that rejects ETH),
         // revert the entire transaction to protect the funds.
         if (!success) {
             revert Raffle__TransferFailed();
         }
+
+        // Emit an event to log the winner's address for off-chain indexing.
+        // Note: s_recentWinner is used instead of recentWinner so that the
+        // emitted value reflects what is actually stored in contract state.
+        emit WinnerPicked(s_recentWinner);
     }
 
     /* ─────────────────────────────────────────────
