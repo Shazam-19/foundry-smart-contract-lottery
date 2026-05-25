@@ -65,6 +65,19 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // round has not yet been resolved).
     error Raffle__RaffleNotOpen();
 
+    // Thrown when checkUpkeep() returns false and pickWinner() is called
+    // prematurely. Carries diagnostic values to help identify which condition
+    // was not met:
+    //
+    //   balance       → contract has no ETH to pay out (no one entered)
+    //   playersLength → no players have entered the raffle
+    //   RaffleState   → raffle is not in OPEN state (e.g. still CALCULATING)
+    //
+    // Example:
+    //   Raffle__UpkeepNotNeeded(0, 0, 1)
+    //   → balance is 0, no players, raffle is CALCULATING (1) → too early to pick
+    error Raffle__UpkeepNotNeeded(uint256 balance, uint256 playersLength, uint256 RaffleState);
+
     /* ─────────────────────────────────────────────
      * Type Declarations
      * ─────────────────────────────────────────────
@@ -273,21 +286,77 @@ contract Raffle is VRFConsumerBaseV2Plus {
     }
 
     /**
-     * @notice Initiates the winner selection process for the current raffle round.
-     * @dev    Enforces a minimum time interval between rounds, then requests a
-     *         verifiably random number from Chainlink VRF v2.5.
-     *         The two-step process:
-     *           1. [This function] Verify elapsed time → request randomness from Chainlink.
-     *           2. [fulfillRandomWords] Receive randomness → select winner → pay out prize.
+     * @notice Checks whether the raffle conditions are met to trigger upkeep.
+     * @dev Called by Chainlink Automation nodes to determine whether
+     * `performUpkeep()` should execute.
+     *
+     * Requirements:
+     * - The configured time interval must have elapsed.
+     * - The raffle must currently be open.
+     * - The contract must contain ETH.
+     * - At least one player must have entered.
+     *
+     *
+     * @return upkeepNeeded True if upkeep should be performed.
+     * @return performData Encoded data to be passed to `performUpkeep()`.
      */
-    function pickWinner() external {
-        // Revert if not enough time has passed since the last round.
-        // Example: if i_interval = 50s and only 30s have passed → revert.
-        //          if i_interval = 50s and 100s have passed     → proceed.
-        if ((block.timestamp - s_lastTimeStamp) < i_interval) {
-            revert();
+    function checkUpkeep(
+        bytes memory /* checkData */
+    )
+        // Declaring 'checkData' as 'calldata' type is more gas efficient than 'memory'
+        public
+        view
+        // `upkeepNeeded` is implicitly initialized through the named return variable declaration
+        returns (
+            bool upkeepNeeded,
+            bytes memory /* performData */
+        )
+    {
+        bool timeHasPassed = (block.timestamp - s_lastTimeStamp) >= i_interval;
+
+        bool isOpen = s_raffleState == RaffleState.OPEN;
+
+        bool hasBalance = address(this).balance > 0;
+
+        bool hasPlayers = s_players.length > 0;
+
+        upkeepNeeded = timeHasPassed && isOpen && hasBalance && hasPlayers;
+
+        return (upkeepNeeded, "");
+    }
+
+    /**
+     * @notice Initiates the process of selecting a raffle winner.
+     * @dev Called by Chainlink Automation when `checkUpkeep()` returns true.
+     *
+     * Workflow:
+     * 1. Verify that upkeep conditions are still satisfied.
+     * 2. Change the raffle state to `CALCULATING` to prevent new entries.
+     * 3. Request a random number from Chainlink VRF.
+     * 4. Chainlink VRF later calls `fulfillRandomWords()` with the result.
+     *
+     * Requirements:
+     * - The raffle must be open.
+     * - The raffle interval must have passed.
+     * - The contract must contain ETH.
+     * - At least one player must have entered.
+     *
+     */
+    function performUpkeep(
+        bytes calldata /* performData */
+    )
+        external
+    {
+        // Check that upkeep conditions for safety to initialize the lottery.
+        // This prevents execution if conditions changed.
+        (bool upkeepNeeded,) = checkUpkeep("");
+
+        // Revert if upkeep is not required.
+        if (!upkeepNeeded) {
+            revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
         }
 
+        // Lock the raffle while the winner is being determined.
         s_raffleState = RaffleState.CALCULATING;
 
         // Request a random number from Chainlink VRF v2.5.
@@ -313,6 +382,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
                 extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
             })
         );
+
+        // Prevent unused parameter warning
+        requestId;
     }
 
     /**
@@ -339,6 +411,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
      *                    to derive a winner index via modulo.
      */
     function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
+        /**
+     * Checks
+     */
+        // Conditionals
+
+        /**
+         * Effect (Internal Contract State)
+         */
+
         // Use modulo to convert the large random number into a valid s_players index.
         // Example: s_players.length = 10, randomWords[0] = 54464968745561265489741236776
         //          54464968745561265489741236776 % 10 = 6 → player at index 6 wins.
@@ -349,12 +430,22 @@ contract Raffle is VRFConsumerBaseV2Plus {
         s_recentWinner = recentWinner;
 
         // Reset the raffle state for the next round BEFORE transferring funds.
-        // Resetting state first follows the Checks-Effects-Interactions pattern,
+        // Resetting state first follows the Checks-Effects-Interactions (CEI) pattern,
         // which protects against reentrancy attacks; if the transfer somehow
         // triggered a reentrant call, the raffle state would already be clean.
+        // Sometimes it's called Function Requirments Effects-Interactions Protocol Invariants (FREI-PI)
         s_raffleState = RaffleState.OPEN;
         s_players = new address payable[](0);
         s_lastTimeStamp = block.timestamp;
+
+        // Emit an event to log the winner's address for off-chain indexing.
+        // Note: s_recentWinner is used instead of recentWinner so that the
+        // emitted value reflects what is actually stored in contract state.
+        emit WinnerPicked(s_recentWinner);
+
+        /**
+         * Interactions (External Contract Interactions)
+         */
 
         // Transfer the entire contract balance to the winner.
         // .call is the recommended way to send ETH — it forwards all available
@@ -368,10 +459,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
             revert Raffle__TransferFailed();
         }
 
-        // Emit an event to log the winner's address for off-chain indexing.
-        // Note: s_recentWinner is used instead of recentWinner so that the
-        // emitted value reflects what is actually stored in contract state.
-        emit WinnerPicked(s_recentWinner);
+        // Prevent unused parameter warning
+        requestId;
     }
 
     /* ─────────────────────────────────────────────
@@ -391,3 +480,48 @@ contract Raffle is VRFConsumerBaseV2Plus {
         return i_enteranceFee;
     }
 }
+
+/**
+ * Refactored this function and splitted it into checkUpkeep and pickWinner functions
+ * @notice Initiates the winner selection process for the current raffle round.
+ * @dev    Enforces a minimum time interval between rounds, then requests a
+ *         verifiably random number from Chainlink VRF v2.5.
+ *         The two-step process:
+ *           1. [This function] Verify elapsed time → request randomness from Chainlink.
+ *           2. [fulfillRandomWords] Receive randomness → select winner → pay out prize.
+ *
+ * function pickWinner() external {
+ *     // Revert if not enough time has passed since the last round.
+ *     // Example: if i_interval = 50s and only 30s have passed → revert.
+ *     //          if i_interval = 50s and 100s have passed     → proceed.
+ *     if ((block.timestamp - s_lastTimeStamp) < i_interval) {
+ *         revert();
+ *     }
+ *
+ *     s_raffleState = RaffleState.CALCULATING;
+ *
+ *     // Request a random number from Chainlink VRF v2.5.
+ *     // This is Step 1 of 2 — we send the request and receive a requestId.
+ *     // Chainlink's oracle node will later call fulfillRandomWords() with the result.
+ *     // Note: The subscription must be funded with LINK (or ETH if nativePayment is true)
+ *     //       or this call will revert.
+ *     uint256 requestId = s_vrfCoordinator.requestRandomWords(
+ *         VRFV2PlusClient.RandomWordsRequest({
+ *             // The gas lane key hash — determines the max gas price for the VRF callback.
+ *             keyHash: i_keyHash,
+ *             // The Chainlink subscription ID that funds this request.
+ *             subId: i_subscriptionId,
+ *             // How many block confirmations Chainlink waits before responding.
+ *             // More confirmations = more security, but slower response.
+ *             requestConfirmations: REQUEST_CONFIRMATIONS,
+ *             // Max gas the callback function (fulfillRandomWords) is allowed to use.
+ *             callbackGasLimit: i_callBackGasLimit,
+ *             // How many random numbers to request (we only need 1 to pick a winner).
+ *             numWords: NUM_WORDS,
+ *             // nativePayment: false → pay the VRF fee in LINK.
+ *             // Set to true to pay in native ETH (e.g. Sepolia ETH on testnet).
+ *             extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+ *         })
+ *     );
+ * }
+ */
