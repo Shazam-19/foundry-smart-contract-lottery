@@ -7,6 +7,14 @@ import {Raffle} from "../../src/Raffle.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 
 contract RaffleTest is Test {
+    // Emitted when a player successfully enters the raffle.
+    // Indexed on `player` so front-ends can filter entries by wallet address.
+    event RaffleEntered(address indexed player);
+
+    // Emitted when a winner is selected and paid at the end of a round.
+    // Indexed on `winner` so front-ends can filter and display past winners.
+    event WinnerPicked(address indexed winner);
+
     Raffle public raffle;
     HelperConfig public helperConfig;
 
@@ -58,5 +66,15 @@ contract RaffleTest is Test {
         // Asset
         address playerRecorded = raffle.getPlayer(0);
         assert(playerRecorded == PLAYER);
+    }
+
+    function testEnteringRaffleEmitsEvent() public {
+        // Arrange
+        vm.prank(PLAYER);
+        // Act
+        vm.expectEmit(true, false, false, false, address(raffle));
+        emit RaffleEntered(PLAYER);
+        // Assert
+        raffle.enterRaffle{value: enteranceFee}();
     }
 }
