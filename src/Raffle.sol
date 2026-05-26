@@ -78,6 +78,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
     //   → balance is 0, no players, raffle is CALCULATING (1) → too early to pick
     error Raffle__UpkeepNotNeeded(uint256 balance, uint256 playersLength, uint256 RaffleState);
 
+    error Raffle__NoPlayers();
+
     /* ─────────────────────────────────────────────
      * Type Declarations
      * ─────────────────────────────────────────────
