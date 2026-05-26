@@ -43,7 +43,6 @@ import {VRFCoordinatorV2_5Mock} from "chainlink-evm/contracts/src/v0.8/vrf/mocks
  *                                    (e.g. when deploying on Anvil)
  */
 contract CreateSubscription is Script {
-
     /**
      * @notice Reads the VRF coordinator address from HelperConfig and
      *         creates a subscription on the current network automatically.
