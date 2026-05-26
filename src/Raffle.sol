@@ -419,6 +419,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // Use modulo to convert the large random number into a valid s_players index.
         // Example: s_players.length = 10, randomWords[0] = 54464968745561265489741236776
         //          54464968745561265489741236776 % 10 = 6 → player at index 6 wins.
+        if (s_players.length == 0) {
+            revert Raffle__NoPlayers();
+        }
         uint256 indexOfWinner = randomWords[0] % s_players.length;
 
         // Retrieve the winner's address from the players array and store it.
