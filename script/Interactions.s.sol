@@ -109,7 +109,7 @@ contract CreateSubscription is Script {
 }
 
 contract FundSubscription is Script, CodeConstants {
-    uint256 public constant FUND_AMOUNT = 3 ether; // 3 ether == 3 LINK
+    uint256 public constant FUND_AMOUNT = 0.1 ether; // 0.1 ether == 0.1 LINK
 
     function fundSubscriptionUsingConfig() public {
         HelperConfig helperConfig = new HelperConfig();
@@ -142,4 +142,20 @@ contract FundSubscription is Script, CodeConstants {
     function run() public {
         fundSubscriptionUsingConfig();
     }
+}
+
+/*
+Welcome to Chainlink VRF!
+We require a signature in order to ensure you are the owner of the subscription.
+Wallet address:
+0xf54ea090d66ac6903cae152d7e35ea0ff59b42cc
+VRF Coordinator address:
+0x9ddfaca8183c41ad55329bdeed9f6a8d53168b1b
+Subscription ID:
+79670482528149814182213957532823682063266212056878174057017214077828570207991
+
+*/
+
+contract AddConsumer is Script {
+    function run() external {}
 }
