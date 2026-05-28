@@ -33,9 +33,16 @@ import {LinkToken} from "test/mocks/LinkToken.sol";
  */
 abstract contract CodeConstants {
     /* VRF Mock Values */
+
+    // Flat fee (in LINK/wei) charged per VRF randomness request, regardless of gas used.
     uint96 public MOCK_BASE_FEE = 0.25 ether;
+
+    // Gas overhead cost (in LINK per gas unit) added on top of the base fee.
+    // Simulates the variable portion of the real VRF coordinator's pricing.
     uint96 public MOCK_GAS_PRICE_LINK = 1e9;
-    // LINK / ETH price
+
+    // The mock exchange rate: how many wei equal 1 LINK token.
+    // Used by the mock coordinator to convert LINK fees into ETH equivalents.
     int256 public MOCK_WEI_PER_UINT_LINK = 4e16;
 
     uint256 public constant ETH_SEPOLIA_CHAIN_ID = 11155111;
@@ -120,6 +127,12 @@ contract HelperConfig is CodeConstants, Script {
         }
     }
 
+    /**
+     * @notice Returns the network configuration for the currently active chain.
+     * @dev    Convenience wrapper around getConfigByChainId() that automatically
+     *         uses block.chainid, so callers don't need to pass the chain ID manually.
+     * @return The NetworkConfig for the current network.
+     */
     function getConfig() public returns (NetworkConfig memory) {
         return getConfigByChainId(block.chainid);
     }
@@ -160,7 +173,6 @@ contract HelperConfig is CodeConstants, Script {
      *         Since Anvil has no real Chainlink infrastructure, this function
      *         must deploy VRF mock contracts locally before building the config.
      *
-     *         TODO: Deploy VRFCoordinatorV2_5Mock and populate localNetworkConfig.
      *
      * @return  A NetworkConfig struct populated with local mock values.
      */
@@ -171,7 +183,8 @@ contract HelperConfig is CodeConstants, Script {
             return localNetworkConfig;
         }
 
-        // TODO: Deploy VRFCoordinatorV2_5Mock here and assign localNetworkConfig.
+        // Broadcast mock contract deployments as real transactions on the local Anvil chain.
+        // Required so Forge registers the deployed addresses in the simulated environment.
         vm.startBroadcast();
 
         VRFCoordinatorV2_5Mock vrfCoordinatorMock =
@@ -182,13 +195,12 @@ contract HelperConfig is CodeConstants, Script {
         vm.stopBroadcast();
 
         localNetworkConfig = NetworkConfig({
-            entranceFee: 0.01 ether,
-            interval: 30,
+            entranceFee: 0.01 ether, // 10,000,000,000,000,000 wei — higher than Sepolia for easier local testing
+            interval: 30, // 30 seconds between rounds
             vrfCoordinator: address(vrfCoordinatorMock),
-            // Doesn't matter, the mock will work no matter the gasLane is
-            gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
-            subscriptionId: 0,
-            callBackGasLimit: 500000,
+            gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae, // Ignored by the mock — any value works locally
+            subscriptionId: 0, // Placeholder — a valid ID is created and assigned in the deploy script
+            callBackGasLimit: 500000, // 500,000 gas units for the VRF callback
             linkToken: address(linkToken)
         });
 
