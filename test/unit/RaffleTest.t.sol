@@ -220,6 +220,13 @@ contract RaffleTest is Test {
         raffle.enterRaffle{value: enteranceFee}();
     }
 
+    /**
+     * @dev Verifies that checkUpkeep() returns false when the contract
+     *      holds no ETH (i.e. no players have entered and paid a fee).
+     *
+     *      Time is warped past the interval to ensure the only failing
+     *      condition is the missing balance — not the time check.
+     */
     function testCheckUpkeepReturnsFalseIfRaffleHasNoETH() public {
         // Arrange
         vm.warp(block.timestamp + interval + 1);
@@ -233,16 +240,27 @@ contract RaffleTest is Test {
         assert(!upkeepNeeded);
     }
 
-    function testChceckUpkeepReturnsFalseIfRaffleIsNotOpen() public {
+    /**
+     * @dev Verifies that checkUpkeep() returns false when the raffle is
+     *      in the CALCULATING state (i.e. a VRF request is in flight).
+     *
+     *      performUpkeep() is called to transition the raffle from OPEN
+     *      to CALCULATING before the upkeep check is made.
+     */
+    function testCheckUpkeepReturnsFalseIfRaffleIsNotOpen() public {
         // Arrange
         vm.prank(PLAYER);
         raffle.enterRaffle{value: enteranceFee}();
         vm.warp(block.timestamp + interval + 1);
         vm.roll(block.number + 1);
+
+        // Transition raffle to CALCULATING state, blocking new entries.
+        raffle.performUpkeep("");
+
         // Act
         (bool upkeepNeeded,) = raffle.checkUpkeep("");
 
         // Assert
-        assert(upkeepNeeded);
+        assert(!upkeepNeeded);
     }
 }
