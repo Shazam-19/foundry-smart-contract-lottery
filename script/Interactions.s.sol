@@ -109,43 +109,97 @@ contract CreateSubscription is Script {
     }
 }
 
+/*
+ * FundSubscription
+ *
+ * Handles funding an existing Chainlink VRF v2.5 subscription with LINK.
+ *
+ * Funding behaviour differs by network:
+ *   - Anvil (local): calls fundSubscription() directly on the mock coordinator.
+ *   - Live networks: uses transferAndCall() on the LINK token contract, which
+ *     transfers LINK and notifies the coordinator in a single transaction.
+ */
 contract FundSubscription is Script, CodeConstants {
-    uint256 public constant FUND_AMOUNT = 0.1 ether; // 0.1 ether == 0.1 LINK
+    // Amount of LINK to deposit into the subscription.
+    // Uses ether units (1e18) since LINK also has 18 decimals — not an ETH amount.
+    uint256 public constant FUND_AMOUNT = 0.1 ether;
 
+    /**
+     * @notice Reads VRF config from HelperConfig and funds the subscription
+     *         on the current network automatically.
+     * @dev    Config-aware wrapper around fundSubscription(). Resolves the
+     *         correct coordinator, subscription ID, and LINK token address
+     *         for the active chain, then delegates to fundSubscription().
+     */
     function fundSubscriptionUsingConfig() public {
         HelperConfig helperConfig = new HelperConfig();
-        address vrfCoordinator = helperConfig.getConfig().vrfCoordinator;
-        vrfCoordinator;
-        uint256 subscriptionId = helperConfig.getConfig().subscriptionId;
-        subscriptionId;
 
+        address vrfCoordinator = helperConfig.getConfig().vrfCoordinator;
+
+        uint256 subscriptionId = helperConfig.getConfig().subscriptionId;
+
+        // Fetch the LINK token address for the current network.
+        // Used on live networks to call transferAndCall() for funding.
         address linkToken = helperConfig.getConfig().linkToken;
 
+        // Delegate to fundSubscription() with all resolved config values.
         fundSubscription(vrfCoordinator, subscriptionId, linkToken);
     }
 
+    /**
+     * @notice Funds a Chainlink VRF subscription with LINK on the given coordinator.
+     * @dev    Funding method differs by network:
+     *           - Local Anvil: calls fundSubscription() directly on the mock.
+     *           - Live networks: uses LINK's transferAndCall(), which transfers
+     *             tokens and notifies the coordinator atomically.
+     *
+     * @param vrfCoordinator  Address of the VRF coordinator managing the subscription.
+     * @param subscriptionId  The subscription ID to fund.
+     * @param linkToken       Address of the LINK token contract on the current network.
+     */
     function fundSubscription(address vrfCoordinator, uint256 subscriptionId, address linkToken) public {
         console.log("Funding Subscription: ", subscriptionId);
         console.log("Using VRF Coordinator: ", vrfCoordinator);
         console.log("On Chain Id: ", block.chainid);
 
         if (block.chainid == LOCAL_CHAIN_ID) {
+            // On Anvil, fund the mock coordinator directly — no real LINK token exists.
             vm.startBroadcast();
             VRFCoordinatorV2_5Mock(vrfCoordinator).fundSubscription(subscriptionId, FUND_AMOUNT);
             vm.stopBroadcast();
         } else {
+            // On live networks, use transferAndCall() to transfer LINK and notify
+            // the coordinator in a single atomic transaction.
             vm.startBroadcast();
             LinkToken(linkToken).transferAndCall(vrfCoordinator, FUND_AMOUNT, abi.encode(subscriptionId));
             vm.stopBroadcast();
         }
     }
 
+    /**
+     * @notice Foundry entrypoint — called when running this script directly.
+     * @dev    Delegates to fundSubscriptionUsingConfig() so the correct
+     *         network config is applied automatically.
+     */
     function run() public {
         fundSubscriptionUsingConfig();
     }
 }
 
+/*
+ * AddConsumer
+ *
+ * Registers a deployed Raffle contract as an approved consumer on an
+ * existing Chainlink VRF subscription. A consumer must be registered
+ * before it can request random numbers — unregistered contracts will
+ * have their VRF requests rejected by the coordinator.
+ */
 contract AddConsumer is Script {
+    /**
+     * @notice Reads VRF config from HelperConfig and registers the given
+     *         contract as a consumer on the current network automatically.
+     * @param mostRecentlyDeployed Address of the contract to register as a consumer.
+     */
     function addConsumerUsingConfig(address mostRecentlyDeployed) public {
         HelperConfig helperConfig = new HelperConfig();
         address vrfCoordinator = helperConfig.getConfig().vrfCoordinator;
@@ -154,6 +208,15 @@ contract AddConsumer is Script {
         addConsumer(mostRecentlyDeployed, vrfCoordinator, subscriptionId);
     }
 
+    /**
+     * @notice Registers a contract as an approved consumer on a VRF subscription.
+     * @dev    Wraps the call in vm.startBroadcast() so Foundry submits it
+     *         as a real on-chain transaction rather than a local simulation.
+     *
+     * @param contractToAddToVRF  Address of the contract to register.
+     * @param vrfCoordinator      Address of the VRF coordinator managing the subscription.
+     * @param subscriptionId      The subscription ID to add the consumer to.
+     */
     function addConsumer(address contractToAddToVRF, address vrfCoordinator, uint256 subscriptionId) public {
         console.log("Adding Consumer Contract: ", contractToAddToVRF);
         console.log("To VRF Coordinator: ", vrfCoordinator);
@@ -164,6 +227,11 @@ contract AddConsumer is Script {
         vm.stopBroadcast();
     }
 
+    /**
+     * @notice Foundry entrypoint — called when running this script directly.
+     * @dev    Automatically resolves the most recently deployed Raffle contract
+     *         using DevOpsTools, then registers it as a VRF consumer.
+     */
     function run() external {
         address mostRecentlyDeployed = DevOpsTools.get_most_recent_deployment("Raffle", block.chainid);
         addConsumerUsingConfig(mostRecentlyDeployed);
