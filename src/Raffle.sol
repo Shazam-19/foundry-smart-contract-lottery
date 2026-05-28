@@ -78,6 +78,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
     //   → balance is 0, no players, raffle is CALCULATING (1) → too early to pick
     error Raffle__UpkeepNotNeeded(uint256 balance, uint256 playersLength, uint256 RaffleState);
 
+    // Thrown when fulfillRandomWords() is called but the players array is empty.
+    // Acts as a safety net in case the array is somehow cleared before the VRF callback fires.
     error Raffle__NoPlayers();
 
     /* ─────────────────────────────────────────────
@@ -305,25 +307,27 @@ contract Raffle is VRFConsumerBaseV2Plus {
     function checkUpkeep(
         bytes memory /* checkData */
     )
-        // Declaring 'checkData' as 'calldata' type is more gas efficient than 'memory'
+        // 'calldata' would be more gas-efficient that 'memory' here, but Chainlink Automation requires 'memory' for compatibility
         public
         view
-        // `upkeepNeeded` is implicitly initialized through the named return variable declaration
         returns (
             bool upkeepNeeded,
             bytes memory /* performData */
         )
     {
+        // True if enough time has elapsed since the last round completed.
         bool timeHasPassed = (block.timestamp - s_lastTimeStamp) >= i_interval;
 
+        // True if the raffle is currently accepting entries (not mid-calculation).
         bool isOpen = s_raffleState == RaffleState.OPEN;
 
+        // True if the contract holds ETH to pay out — ensures there's a prize.
         bool hasBalance = address(this).balance > 0;
 
+        // True if at least one player has entered this round.
         bool hasPlayers = s_players.length > 0;
 
         upkeepNeeded = timeHasPassed && isOpen && hasBalance && hasPlayers;
-
         return (upkeepNeeded, "");
     }
 
@@ -349,8 +353,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
     )
         external
     {
-        // Check that upkeep conditions for safety to initialize the lottery.
-        // This prevents execution if conditions changed.
+        // Re-validate upkeep conditions before proceeding.
+        // Conditions may have changed between checkUpkeep() and this call,
+        // so this guard prevents execution in an invalid state.
         (bool upkeepNeeded,) = checkUpkeep("");
 
         // Revert if upkeep is not required.
@@ -414,16 +419,19 @@ contract Raffle is VRFConsumerBaseV2Plus {
      */
     function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
         /* Checks */
-        // Conditionals
+        // Conditionals:
+        // Guard against an empty players array before using modulo.
+        // Should never happen under normal flow, but acts as a safety net
+        // in case state is corrupted or the callback fires unexpectedly.
+        if (s_players.length == 0) {
+            revert Raffle__NoPlayers();
+        }
 
         /* Effect (Internal Contract State) */
 
         // Use modulo to convert the large random number into a valid s_players index.
         // Example: s_players.length = 10, randomWords[0] = 54464968745561265489741236776
         //          54464968745561265489741236776 % 10 = 6 → player at index 6 wins.
-        if (s_players.length == 0) {
-            revert Raffle__NoPlayers();
-        }
         uint256 indexOfWinner = randomWords[0] % s_players.length;
 
         // Retrieve the winner's address from the players array and store it.
@@ -479,17 +487,26 @@ contract Raffle is VRFConsumerBaseV2Plus {
         return i_enteranceFee;
     }
 
+    /**
+     * @notice Returns the current state of the raffle.
+     * @return The current RaffleState: OPEN (0) or CALCULATING (1).
+     */
     function getRaffleState() external view returns (RaffleState) {
         return s_raffleState;
     }
 
+    /**
+     * @notice Returns the address of a player at a given index.
+     * @param  indexOfPlayer The zero-based index in the players array.
+     * @return The wallet address of the player at that index.
+     */
     function getPlayer(uint256 indexOfPlayer) external view returns (address) {
         return s_players[indexOfPlayer];
     }
 }
 
 /**
- * Refactored this function and splitted it into checkUpkeep and pickWinner functions
+ * Refactored this function and splitted it into 'checkUpkeep' and 'pickWinner' functions
  * @notice Initiates the winner selection process for the current raffle round.
  * @dev    Enforces a minimum time interval between rounds, then requests a
  *         verifiably random number from Chainlink VRF v2.5.
