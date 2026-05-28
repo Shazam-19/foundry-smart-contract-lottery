@@ -30,6 +30,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {HelperConfig, CodeConstants} from "script/HelperConfig.s.sol";
 import {VRFCoordinatorV2_5Mock} from "chainlink-evm/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 import {LinkToken} from "test/mocks/LinkToken.sol";
+import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
 
 /*
  * CreateSubscription
@@ -144,18 +145,27 @@ contract FundSubscription is Script, CodeConstants {
     }
 }
 
-/*
-Welcome to Chainlink VRF!
-We require a signature in order to ensure you are the owner of the subscription.
-Wallet address:
-0xf54ea090d66ac6903cae152d7e35ea0ff59b42cc
-VRF Coordinator address:
-0x9ddfaca8183c41ad55329bdeed9f6a8d53168b1b
-Subscription ID:
-79670482528149814182213957532823682063266212056878174057017214077828570207991
-
-*/
-
 contract AddConsumer is Script {
-    function run() external {}
+    function addConsumerUsingConfig(address mostRecentlyDeployed) public {
+        HelperConfig helperConfig = new HelperConfig();
+        address vrfCoordinator = helperConfig.getConfig().vrfCoordinator;
+        uint256 subscriptionId = helperConfig.getConfig().subscriptionId;
+
+        addConsumer(mostRecentlyDeployed, vrfCoordinator, subscriptionId);
+    }
+
+    function addConsumer(address contractToAddToVRF, address vrfCoordinator, uint256 subscriptionId) public {
+        console.log("Adding Consumer Contract: ", contractToAddToVRF);
+        console.log("To VRF Coordinator: ", vrfCoordinator);
+        console.log("On Chain ID: ", block.chainid);
+
+        vm.startBroadcast();
+        VRFCoordinatorV2_5Mock(vrfCoordinator).addConsumer(subscriptionId, contractToAddToVRF);
+        vm.stopBroadcast();
+    }
+
+    function run() external {
+        address mostRecentlyDeployed = DevOpsTools.get_most_recent_deployment("Raffle", block.chainid);
+        addConsumerUsingConfig(mostRecentlyDeployed);
+    }
 }
