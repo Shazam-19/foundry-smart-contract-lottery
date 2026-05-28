@@ -87,7 +87,7 @@ contract RaffleTest is Test {
         // Fetch the network config and unpack it into local variables
         // so individual tests can access parameters like enteranceFee directly.
         HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
-        enteranceFee = config.enteranceFee;
+        enteranceFee = config.entranceFee;
         interval = config.interval;
         vrfCoordinator = config.vrfCoordinator;
         gasLane = config.gasLane;
@@ -108,7 +108,7 @@ contract RaffleTest is Test {
      * @dev Verifies that the raffle starts in the OPEN state after deployment.
      *      If this fails, no player would be able to enter the raffle at all.
      */
-    function testRaffleInitializesInOpenState() public {
+    function testRaffleInitializesInOpenState() public view {
         assert(raffle.getRaffleState() == Raffle.RaffleState.OPEN);
     }
 
@@ -208,7 +208,7 @@ contract RaffleTest is Test {
         // performUpkeep() transitions the raffle from OPEN → CALCULATING
         // and fires off the Chainlink VRF request. Passing "" means no
         // additional calldata is needed (checkUpkeep uses no input data).
-        raffle.performUpkeep("");
+        raffle.performUpkeep(""); // Fail: THIS IS FAILING THE TEST
 
         // Act / Assert — attempting to enter while CALCULATING should revert
         vm.expectRevert(Raffle.Raffle__RaffleNotOpen.selector);

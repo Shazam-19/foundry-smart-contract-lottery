@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import {Script, console} from "forge-std/Script.sol";
 import {VRFCoordinatorV2_5Mock} from "chainlink-evm/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
+import {LinkToken} from "test/mocks/LinkToken.sol";
 
 /*
  * ─────────────────────────────────────────────────────────────
@@ -58,12 +59,13 @@ contract HelperConfig is CodeConstants, Script {
      * Each field maps directly to a constructor parameter in Raffle.sol.
      */
     struct NetworkConfig {
-        uint256 enteranceFee; // Minimum ETH (in wei) required to enter the raffle.
-        uint256 interval; // Minimum seconds between raffle rounds.
-        address vrfCoordinator; // Chainlink VRF coordinator address for this network.
-        bytes32 gasLane; // VRF key hash — identifies the gas lane to use.
-        uint256 subscriptionId; // Chainlink subscription ID funding VRF requests.
-        uint32 callBackGasLimit; // Max gas for the fulfillRandomWords() callback.
+        uint256 entranceFee; // Minimum ETH (in wei) required to enter the raffle.
+        uint256 interval; // Time interval (in seconds) between raffle winner selections.
+        address vrfCoordinator; // Address of the Chainlink VRF Coordinator contract.
+        bytes32 gasLane; // Key hash used to specify the maximum gas price for VRF requests.
+        uint256 subscriptionId; // Chainlink VRF subscription ID used to fund randomness requests.
+        uint32 callBackGasLimit; // Gas limit for the fulfillRandomWords() callback execution.
+        address linkToken; // Address of the LINK token contract for the current network.
     }
 
     /* ─────────────────────────────────────────────
@@ -140,12 +142,13 @@ contract HelperConfig is CodeConstants, Script {
      */
     function getSepoliaEthConfig() public pure returns (NetworkConfig memory) {
         return NetworkConfig({
-            enteranceFee: 0.01 ether, // 10,000,000,000,000,000 wei (1e16)
+            entranceFee: 0.01 ether, // 10,000,000,000,000,000 wei (1e16)
             interval: 30, // 30 seconds between rounds
             vrfCoordinator: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
             gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
             subscriptionId: 0, // ⚠️ Replace with a real funded subscription ID
-            callBackGasLimit: 500000 // 500,000 gas units for the VRF callback
+            callBackGasLimit: 500000, // 500,000 gas units for the VRF callback
+            linkToken: 0x779877A7B0D9E8603169DdbD7836e478b4624789 // VRF LINK Token Contract (Sepolia Testnet)
         });
     }
 
@@ -173,16 +176,20 @@ contract HelperConfig is CodeConstants, Script {
 
         VRFCoordinatorV2_5Mock vrfCoordinatorMock =
             new VRFCoordinatorV2_5Mock(MOCK_BASE_FEE, MOCK_GAS_PRICE_LINK, MOCK_WEI_PER_UINT_LINK);
+        
+        LinkToken linkToken = new LinkToken();
+
         vm.stopBroadcast();
 
         localNetworkConfig = NetworkConfig({
-            enteranceFee: 0.01 ether,
+            entranceFee: 0.01 ether,
             interval: 30,
             vrfCoordinator: address(vrfCoordinatorMock),
             // Doesn't matter, the mock will work no matter the gasLane is
             gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
             subscriptionId: 0,
-            callBackGasLimit: 500000
+            callBackGasLimit: 500000,
+            linkToken: address(linkToken)
         });
 
         return localNetworkConfig;
