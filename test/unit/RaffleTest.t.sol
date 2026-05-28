@@ -208,7 +208,11 @@ contract RaffleTest is Test {
         // performUpkeep() transitions the raffle from OPEN → CALCULATING
         // and fires off the Chainlink VRF request. Passing "" means no
         // additional calldata is needed (checkUpkeep uses no input data).
-        raffle.performUpkeep(""); // Fail: THIS IS FAILING THE TEST
+        raffle.performUpkeep("");
+
+        // ⚠️ Note: performUpkeep() may fail here on a live network if the VRF
+        // subscription is not funded or if this contract is not registered as
+        // a consumer. On Anvil, the mock coordinator handles this automatically.
 
         // Act / Assert — attempting to enter while CALCULATING should revert
         vm.expectRevert(Raffle.Raffle__RaffleNotOpen.selector);
