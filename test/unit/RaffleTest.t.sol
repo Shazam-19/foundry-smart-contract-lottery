@@ -264,34 +264,116 @@ contract RaffleTest is Test {
         assert(!upkeepNeeded);
     }
 
+    /**
+     * @notice Tests that performUpkeep can only execute when upkeep conditions are met.
+     *
+     * @dev This test simulates a valid raffle scenario by:
+     * 1. Making a player enter the raffle
+     * 2. Advancing blockchain time past the required interval
+     * 3. Advancing the block number
+     *
+     * After all conditions are satisfied, performUpkeep should execute successfully
+     * without reverting.
+     *
+     * The test will fail if:
+     * - No player entered the raffle
+     * - Not enough time has passed
+     * - performUpkeep incorrectly reverts
+     */
     function testPerformUpkeepCanOnlyRunIfCheckUpkeepIsTrue() public {
         // Arrange
         vm.prank(PLAYER);
+
+        // Simulate PLAYER entering the raffle
         raffle.enterRaffle{value: enteranceFee}();
+
+        // Move blockchain time forward past the upkeep interval
         vm.warp(block.timestamp + interval + 1);
-        // If we remove the interval and 1, then the function should fail, which is the point of this test
+
+        // Mine a new block
         vm.roll(block.number + 1);
 
         // Act / Assert
         raffle.performUpkeep("");
     }
 
+    /**
+     * @notice Tests that performUpkeep reverts when upkeep conditions are not met.
+     *
+     * @dev This test intentionally avoids advancing time, so checkUpkeep()
+     * should return false.
+     *
+     * The test verifies that performUpkeep() reverts with the exact
+     * custom error and arguments expected.
+     */
     function testPerformUpkeepRevertsIfCheckUpkeepIsFalse() public {
         // Arrange
+
+        // Expected contract balance for the revert
         uint256 currentBalance = 0;
+
+        // Expected number of raffle players
         uint256 numPlayers = 0;
+
+        // Current raffle state (likely OPEN)
         Raffle.RaffleState rState = raffle.getRaffleState();
 
+        // Pretend the next transaction is sent by PLAYER
         vm.prank(PLAYER);
+
+        // PLAYER enters the raffle and sends ETH
         raffle.enterRaffle{value: enteranceFee}();
+
+        // Update expected values after entering
         currentBalance += enteranceFee;
         numPlayers = 1;
 
         // Act / Assert
+
+        /**
+         * expectRevert() tells Foundry:
+         * "The next function call MUST revert with this exact error data."
+         *
+         * abi.encodeWithSelector() builds the raw revert bytes.
+         *
+         * The selector is the first 4 bytes of:
+         *
+         * keccak256(
+         *   "Raffle__UpkeepNotNeeded(uint256,uint256,uint256)"
+         * )
+         *
+         * Every custom error/function in Solidity has a unique selector.
+         *
+         * Equivalent concept:
+         *
+         * bytes4 selector =
+         *     bytes4(
+         *         keccak256(
+         *             "Raffle__UpkeepNotNeeded(uint256,uint256,uint256)"
+         *         )
+         *     );
+         *
+         * Then Solidity ABI-encodes:
+         * - selector
+         * - currentBalance
+         * - numPlayers
+         * - rState
+         *
+         * into one bytes payload.
+         *
+         * The contract is expected to revert with:
+         *
+         * revert Raffle__UpkeepNotNeeded(
+         *     currentBalance,
+         *     numPlayers,
+         *     rState
+         * );
+         */
         vm.expectRevert(
             abi.encodeWithSelector(Raffle.Raffle__UpkeepNotNeeded.selector, currentBalance, numPlayers, rState)
         );
 
+        // This should revert because upkeep conditions are not satisfied
         raffle.performUpkeep("");
     }
 }
