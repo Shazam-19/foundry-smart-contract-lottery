@@ -392,4 +392,61 @@ contract RaffleTest is Test {
 
         _;
     }
+
+    /**
+     * @notice Verifies that calling `performUpkeep` updates the raffle state
+     *         and emits a valid VRF request ID.
+     *
+     * @dev The `raffleEntered` modifier performs the test setup by:
+     *      1. Entering a player into the raffle.
+     *      2. Advancing time beyond the upkeep interval.
+     *      3. Mining a new block.
+     *
+     * Expected results:
+     * - A randomness request is submitted to the VRF coordinator.
+     * - A non-zero request ID is emitted.
+     * - The raffle state changes from OPEN to CALCULATING.
+     */
+    function testPerformUpkeepUpdatesRaffleStateAndEmitsRequestId() public raffleEntered {
+        // Setup is handled by the `raffleEntered` modifier.
+
+        // Begin recording all events emitted during the transaction.
+        vm.recordLogs();
+
+        // Execute upkeep. This should request randomness and update
+        // the raffle state to CALCULATING.
+        raffle.performUpkeep("");
+
+        // Retrieve all logs emitted during the upkeep call.
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        /**
+         * Event logs are returned as an array of `Vm.Log` structs.
+         *
+         * In this test, multiple events are emitted during `performUpkeep` which corresponds to the VRF requestId.
+         * We are interested in the event created in the function, which appears as `entries[1]`.
+         * Unlike the event returned by the VRFCoordinatorV2_5Mock.sol which appears as 'entries[0]'
+         *
+         * Each `Vm.Log` contains a `topics` array used for indexed event parameters:
+         * - topics[0] = event signature hash (identifies the event type)
+         * - topics[1] = first indexed parameter (requestId in this case)
+         *
+         * Example event:
+         * event RequestedRaffleWinner(uint256 indexed requestId);
+         *
+         * Therefore:
+         * entries[1].topics[1] corresponds to the VRF requestId emitted by `performUpkeep`.
+         */
+        bytes32 requestId = entries[1].topics[1];
+
+        // Read the current raffle state after upkeep execution.
+        Raffle.RaffleState raffleState = raffle.getRaffleState();
+
+        // Verify that a valid VRF request ID was generated.
+        assert(uint256(requestId) > 0);
+
+        // Verify that the raffle is now waiting for the random number response.
+        // State value 1 corresponds to RaffleState.CALCULATING.
+        assert(uint256(raffleState) == 1);
+    }
 }
