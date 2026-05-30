@@ -190,6 +190,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // Indexed on `winner` so front-ends can filter and display past winners.
     event WinnerPicked(address indexed winner);
 
+    // Emitted when a randomness request is sent to the VRF coordinator.
+    // Indexed on `requested` (the request ID) so off-chain services can
+    // track the request and correlate it with the eventual callback.
+    event RequestedRaffleWinner(uint256 indexed requestId);
+
     /* ─────────────────────────────────────────────
      * Constructor
      * ─────────────────────────────────────────────
@@ -390,8 +395,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
             })
         );
 
-        // Prevent unused parameter warning
-        requestId;
+        // Emitted when a VRF randomness request is submitted.
+        // The requestId can be used to track the request off-chain and
+        // correlate it with the fulfillment callback.
+        // Note: The VRF Coordinator also emits events for this request so this is a bit redundant
+        emit RequestedRaffleWinner(requestId);
     }
 
     /**

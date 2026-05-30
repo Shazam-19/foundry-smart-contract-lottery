@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {DeployRaffle} from "script/DeployRaffle.s.sol";
 import {Raffle} from "../../src/Raffle.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 /*
  * ─────────────────────────────────────────────────────────────
@@ -375,5 +376,20 @@ contract RaffleTest is Test {
 
         // This should revert because upkeep conditions are not satisfied
         raffle.performUpkeep("");
+    }
+
+    modifier raffleEntered() {
+        vm.prank(PLAYER);
+
+        // Simulate PLAYER entering the raffle
+        raffle.enterRaffle{value: enteranceFee}();
+
+        // Move blockchain time forward past the upkeep interval
+        vm.warp(block.timestamp + interval + 1);
+
+        // Mine a new block
+        vm.roll(block.number + 1);
+
+        _;
     }
 }
