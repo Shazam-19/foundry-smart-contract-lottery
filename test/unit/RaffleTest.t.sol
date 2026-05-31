@@ -589,3 +589,27 @@ contract RaffleTest is CodeConstants, Test {
         assert(endingTimeStamp > startingTimeStamp);
     }
 }
+
+// Unit Tests
+// Test individual functions and components in isolation.
+
+// Integration Tests
+// Verify interactions between multiple contracts, modules, or external dependencies.
+
+// Forked Tests
+// Execute tests against a forked blockchain state to simulate real network conditions.
+
+// Staging Tests
+// Run tests on a live testnet or mainnet environment before production deployment.
+
+// Fuzz Tests
+// Execute functions with randomized inputs to discover edge cases and unexpected behavior.
+
+// Stateless Fuzz Tests
+// Fuzz individual function calls independently, without preserving state between runs.
+
+// Stateful Fuzz Tests
+// Fuzz sequences of actions while maintaining contract state to uncover issues that emerge over time.
+
+// Formal Verification
+// Mathematically prove that a contract satisfies specified properties and invariants under all possible execution paths.
