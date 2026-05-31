@@ -6,6 +6,7 @@ import {DeployRaffle} from "script/DeployRaffle.s.sol";
 import {Raffle} from "../../src/Raffle.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {Vm} from "forge-std/Vm.sol";
+import {VRFCoordinatorV2_5Mock} from "chainlink-evm/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 
 /*
  * ─────────────────────────────────────────────────────────────
@@ -448,5 +449,30 @@ contract RaffleTest is Test {
         // Verify that the raffle is now waiting for the random number response.
         // State value 1 corresponds to RaffleState.CALCULATING.
         assert(uint256(raffleState) == 1);
+    }
+
+    /**
+     * @dev Stateless fuzz test — verifies that fulfillRandomWords() can only
+     *      be called with a valid requestId produced by performUpkeep().
+     *
+     *      Foundry automatically runs this test with many random values for
+     *      `randomRequestId`. Any arbitrary ID that was not issued by the
+     *      coordinator should be rejected with InvalidRequest.
+     *
+     *      The `raffleEntered` modifier sets up a player, warps time, and
+     *      calls performUpkeep() — but any requestId other than the one it
+     *      produced should still revert.
+     */
+    function testFulfillrandomWordsCanOnlyBeCalledAfterPerformUpkeep(uint256 randomRequestId) public raffleEntered {
+        // Arrange / Act / Assert
+
+        // Tells Foundry that the next call must revert with InvalidRequest.
+        // If it doesn't revert, the test fails.
+        vm.expectRevert(VRFCoordinatorV2_5Mock.InvalidRequest.selector);
+
+        // Attempts to call fulfillRandomWords() with an arbitrary requestId.
+        // Since this ID was never issued by performUpkeep(), the coordinator
+        // has no record of it and rejects it; triggering the expected revert.
+        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(randomRequestId, address(raffle));
     }
 }
