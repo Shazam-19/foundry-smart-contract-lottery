@@ -424,9 +424,11 @@ contract RaffleTest is Test {
         /**
          * Event logs are returned as an array of `Vm.Log` structs.
          *
-         * In this test, multiple events are emitted during `performUpkeep` which corresponds to the VRF requestId.
-         * We are interested in the event created in the function, which appears as `entries[1]`.
-         * Unlike the event returned by the VRFCoordinatorV2_5Mock.sol which appears as 'entries[0]'
+         *
+         * During performUpkeep(), two events are emitted which corresponds to the VRF coordinator 'requestId':
+         * - entries[0] → RandomWordsRequested, emitted by the VRF coordinator which is implemented and returned by the VRFCoordinatorV2_5Mock.sol.
+         * - entries[1] → RequestedRaffleWinner, emitted by our performUpkeep()
+         *                  function in Raffle.sol. This is the event that contains the requestId we need.
          *
          * Each `Vm.Log` contains a `topics` array used for indexed event parameters:
          * - topics[0] = event signature hash (identifies the event type)
@@ -491,13 +493,16 @@ contract RaffleTest is Test {
     function testFulfillrandomWordsPicksWinnerThenResetAndSendsMoney() public raffleEntered {
         // Arrange
         uint256 startingIndex = 1;
-        uint256 additionalEntrants = 3; // 3 extra players + PLAYER from modifier = 4 total
-        address expectedWinner = address(1);
+        uint256 additionalEntrants = 3; // 3 extra players = 4 total
+        address expectedWinner = address(1); // Current balance is 0 ether
 
         // Enter additional players into the raffle.
-        // hoax() combines vm.prank() and vm.deal() — it funds and impersonates
+        // hoax() combines vm.prank() and vm.deal(); it funds and impersonates
         // the address in a single call, then reverts to the original sender after.
         for (uint256 i = startingIndex; i < startingIndex + additionalEntrants; i++) {
+            // uint256 (i) cannot be cast to address directly — it must go through uint160 first
+            // because an Ethereum address is 20 bytes (160 bits) wide.
+            // Path: uint256 → uint160 → address
             address newPlayer = address(uint160(i));
             hoax(newPlayer, 1 ether);
             raffle.enterRaffle{value: enteranceFee}();
@@ -505,6 +510,10 @@ contract RaffleTest is Test {
 
         // Capture pre-draw values to compare against after the draw.
         uint256 startingTimeStamp = raffle.getLastTimeStamp();
+
+        // expectedWinner is address(1); it was only funded with 1 ether via hoax()
+        // to cover the entrance fee. After paying it, its remaining balance is
+        // approximately 0 (1 ether - entranceFee).
         uint256 winnerStartingBalance = expectedWinner.balance;
 
         // Act
@@ -520,8 +529,8 @@ contract RaffleTest is Test {
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
         // Extract the requestId from the second log entry's second topic.
-        // entries[1] is the RandomWordsRequested event emitted by the VRF coordinator.
-        // topics[1] is the requestId — topics[0] is always the event signature hash.
+        // entries[1] is the RequestedRaffleWinner event emitted by performUpkeep() in Raffle.sol.
+        // topics[1] is the 'requestId'; topics[0] is always the event signature hash retuned by VRFCoordinatorV2_5Mock.sol
         bytes32 requestId = entries[1].topics[1];
 
         // Simulate the Chainlink VRF callback — delivers the random result to the raffle.
@@ -531,9 +540,17 @@ contract RaffleTest is Test {
 
         // Assert
 
+        // Fetch the winner selected by fulfillRandomWords().
         address recentWinner = raffle.getRecentWinner();
+
+        // Fetch the raffle state — should be OPEN (0) after the draw resets it.
         Raffle.RaffleState raffleState = raffle.getRaffleState();
+
+        // Fetch the winner's balance after receiving the prize payout.
         uint256 winnerBalance = recentWinner.balance;
+
+        // Fetch the timestamp updated at the end of fulfillRandomWords().
+        // Should be greater than startingTimeStamp, confirming a new round began.
         uint256 endingTimeStamp = raffle.getLastTimeStamp();
 
         // Total prize = entranceFee × total number of players.
@@ -546,6 +563,8 @@ contract RaffleTest is Test {
         assert(uint256(raffleState) == 0);
 
         // Verify the winner received the full prize pool.
+        // Since winnerStartingBalance ≈ 0, this effectively asserts:
+        // winnerBalance == prize (the full pool paid out to the winner).
         assert(winnerBalance == winnerStartingBalance + prize);
 
         // Verify the timestamp was updated, confirming a new round started.
