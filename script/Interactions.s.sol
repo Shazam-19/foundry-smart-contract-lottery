@@ -49,7 +49,7 @@ contract CreateSubscription is Script {
      * @notice Reads the VRF coordinator address from HelperConfig and
      *         creates a subscription on the current network automatically.
      * @dev    This is the config-aware wrapper. It resolves the correct
-     *         VRF coordinator for the active chain, then delegates to
+     *         VRF coordinator and account for the active chain, then delegates to
      *         createSubscription(). Used by run() for standalone execution.
      *
      * @return subId          The newly created subscription ID.
@@ -60,7 +60,10 @@ contract CreateSubscription is Script {
         HelperConfig helperConfig = new HelperConfig();
         address vrfCoordinator = helperConfig.getConfig().vrfCoordinator;
 
-        (uint256 subId,) = createSubscription(vrfCoordinator);
+        // Fetch the account that will sign and submit the subscription creation.
+        address account = helperConfig.getConfig().account;
+
+        (uint256 subId,) = createSubscription(vrfCoordinator, account);
 
         return (subId, vrfCoordinator);
     }
@@ -80,14 +83,14 @@ contract CreateSubscription is Script {
      * @return vrfCoordinator The same coordinator address passed in
      *                        (returned for convenience in calling scripts).
      */
-    function createSubscription(address vrfCoordinator) public returns (uint256, address) {
+    function createSubscription(address vrfCoordinator, address account) public returns (uint256, address) {
         // Log the chain ID so you can confirm you're on the intended network.
         console.log("Creating Subscription on Chain ID: ", block.chainid);
 
         // vm.startBroadcast() / vm.stopBroadcast() tells Foundry to sign and
         // submit everything between these calls as a real on-chain transaction.
         // Without this, the call would only simulate locally and not be recorded.
-        vm.startBroadcast();
+        vm.startBroadcast(account);
         uint256 subId = VRFCoordinatorV2_5Mock(vrfCoordinator).createSubscription();
         vm.stopBroadcast();
 
@@ -128,8 +131,8 @@ contract FundSubscription is Script, CodeConstants {
      * @notice Reads VRF config from HelperConfig and funds the subscription
      *         on the current network automatically.
      * @dev    Config-aware wrapper around fundSubscription(). Resolves the
-     *         correct coordinator, subscription ID, and LINK token address
-     *         for the active chain, then delegates to fundSubscription().
+     *         correct coordinator, subscription ID, LINK token address, and
+     *         account for the active chain, then delegates to fundSubscription().
      */
     function fundSubscriptionUsingConfig() public {
         HelperConfig helperConfig = new HelperConfig();
@@ -142,8 +145,11 @@ contract FundSubscription is Script, CodeConstants {
         // Used on live networks to call transferAndCall() for funding.
         address linkToken = helperConfig.getConfig().linkToken;
 
+        // Fetch the account that will sign and submit the funding transaction.
+        address account = helperConfig.getConfig().account;
+
         // Delegate to fundSubscription() with all resolved config values.
-        fundSubscription(vrfCoordinator, subscriptionId, linkToken);
+        fundSubscription(vrfCoordinator, subscriptionId, linkToken, account);
     }
 
     /**
@@ -157,7 +163,9 @@ contract FundSubscription is Script, CodeConstants {
      * @param subscriptionId  The subscription ID to fund.
      * @param linkToken       Address of the LINK token contract on the current network.
      */
-    function fundSubscription(address vrfCoordinator, uint256 subscriptionId, address linkToken) public {
+    function fundSubscription(address vrfCoordinator, uint256 subscriptionId, address linkToken, address account)
+        public
+    {
         console.log("Funding Subscription: ", subscriptionId);
         console.log("Using VRF Coordinator: ", vrfCoordinator);
         console.log("On Chain Id: ", block.chainid);
@@ -172,7 +180,7 @@ contract FundSubscription is Script, CodeConstants {
         } else {
             // On live networks, use transferAndCall() to transfer LINK and notify
             // the coordinator in a single atomic transaction.
-            vm.startBroadcast();
+            vm.startBroadcast(account);
             LinkToken(linkToken).transferAndCall(vrfCoordinator, FUND_AMOUNT, abi.encode(subscriptionId));
             vm.stopBroadcast();
         }
@@ -206,8 +214,8 @@ contract AddConsumer is Script {
         HelperConfig helperConfig = new HelperConfig();
         address vrfCoordinator = helperConfig.getConfig().vrfCoordinator;
         uint256 subscriptionId = helperConfig.getConfig().subscriptionId;
-
-        addConsumer(mostRecentlyDeployed, vrfCoordinator, subscriptionId);
+        address account = helperConfig.getConfig().account;
+        addConsumer(mostRecentlyDeployed, vrfCoordinator, subscriptionId, account);
     }
 
     /**
@@ -218,13 +226,18 @@ contract AddConsumer is Script {
      * @param contractToAddToVRF  Address of the contract to register.
      * @param vrfCoordinator      Address of the VRF coordinator managing the subscription.
      * @param subscriptionId      The subscription ID to add the consumer to.
+     * @param account             The account that will sign and submit the transaction.
      */
-    function addConsumer(address contractToAddToVRF, address vrfCoordinator, uint256 subscriptionId) public {
+    function addConsumer(address contractToAddToVRF, address vrfCoordinator, uint256 subscriptionId, address account)
+        public
+    {
         console.log("Adding Consumer Contract: ", contractToAddToVRF);
         console.log("To VRF Coordinator: ", vrfCoordinator);
         console.log("On Chain ID: ", block.chainid);
 
-        vm.startBroadcast();
+        // Broadcast as the specified account so the transaction is signed correctly
+        // on both local Anvil and live networks.
+        vm.startBroadcast(account);
         VRFCoordinatorV2_5Mock(vrfCoordinator).addConsumer(subscriptionId, contractToAddToVRF);
         vm.stopBroadcast();
     }

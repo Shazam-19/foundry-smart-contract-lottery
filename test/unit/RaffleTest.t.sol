@@ -7,6 +7,7 @@ import {Raffle} from "../../src/Raffle.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {VRFCoordinatorV2_5Mock} from "chainlink-evm/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
+import {CodeConstants} from "script/HelperConfig.s.sol";
 
 /*
  * ─────────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ import {VRFCoordinatorV2_5Mock} from "chainlink-evm/contracts/src/v0.8/vrf/mocks
  *  ensuring each test starts from a clean, consistent state.
  * ─────────────────────────────────────────────────────────────
  */
-contract RaffleTest is Test {
+contract RaffleTest is CodeConstants, Test {
     /* ─────────────────────────────────────────────
      * Events
      * ─────────────────────────────────────────────
@@ -454,6 +455,19 @@ contract RaffleTest is Test {
     }
 
     /**
+     * @dev Skips the test if the current network is not the local Anvil chain.
+     *      Useful for tests that rely on VRF mocks which are only available locally.
+     *      On live networks (e.g. Sepolia), the test is skipped by returning early.
+     */
+    modifier skipFork() {
+        if (block.chainid != LOCAL_CHAIN_ID) {
+            return;
+        }
+
+        _;
+    }
+
+    /**
      * @dev Stateless fuzz test — verifies that fulfillRandomWords() can only
      *      be called with a valid requestId produced by performUpkeep().
      *
@@ -465,7 +479,11 @@ contract RaffleTest is Test {
      *      calls performUpkeep() — but any requestId other than the one it
      *      produced should still revert.
      */
-    function testFulfillrandomWordsCanOnlyBeCalledAfterPerformUpkeep(uint256 randomRequestId) public raffleEntered {
+    function testFulfillrandomWordsCanOnlyBeCalledAfterPerformUpkeep(uint256 randomRequestId)
+        public
+        raffleEntered
+        skipFork
+    {
         // Arrange / Act / Assert
 
         // Tells Foundry that the next call must revert with InvalidRequest.
@@ -490,7 +508,7 @@ contract RaffleTest is Test {
      *      expectedWinner is address(1) because the VRF mock returns a predictable
      *      random value, and randomWords[0] % 4 resolves to index 0 → address(1).
      */
-    function testFulfillrandomWordsPicksWinnerThenResetAndSendsMoney() public raffleEntered {
+    function testFulfillrandomWordsPicksWinnerThenResetAndSendsMoney() public raffleEntered skipFork {
         // Arrange
         uint256 startingIndex = 1;
         uint256 additionalEntrants = 3; // 3 extra players = 4 total
