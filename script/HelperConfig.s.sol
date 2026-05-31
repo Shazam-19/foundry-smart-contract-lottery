@@ -68,11 +68,12 @@ contract HelperConfig is CodeConstants, Script {
     struct NetworkConfig {
         uint256 entranceFee; // Minimum ETH (in wei) required to enter the raffle.
         uint256 interval; // Time interval (in seconds) between raffle winner selections.
-        address vrfCoordinator; // Address of the Chainlink VRF Coordinator contract.
         bytes32 gasLane; // Key hash used to specify the maximum gas price for VRF requests.
+        address vrfCoordinator; // Address of the Chainlink VRF Coordinator contract.
+        address linkToken; // Address of the LINK token contract for the current network.
+        address account; // Address of the account which we want to send the transaction with
         uint256 subscriptionId; // Chainlink VRF subscription ID used to fund randomness requests.
         uint32 callBackGasLimit; // Gas limit for the fulfillRandomWords() callback execution.
-        address linkToken; // Address of the LINK token contract for the current network.
     }
 
     /* ─────────────────────────────────────────────
@@ -157,11 +158,12 @@ contract HelperConfig is CodeConstants, Script {
         return NetworkConfig({
             entranceFee: 0.001 ether, // 10,000,000,000,000,000 wei (1e16)
             interval: 30, // 30 seconds between rounds
-            vrfCoordinator: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
             gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
-            subscriptionId: 79670482528149814182213957532823682063266212056878174057017214077828570207991, // ⚠️ Replace with a real funded subscription ID
-            callBackGasLimit: 500000, // 500,000 gas units for the VRF callback
-            linkToken: 0x779877A7B0D9E8603169DdbD7836e478b4624789 // VRF LINK Token Contract (Sepolia Testnet)
+            vrfCoordinator: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
+            linkToken: 0x779877A7B0D9E8603169DdbD7836e478b4624789, // VRF LINK Token Contract (Sepolia Testnet)
+            account: 0xF54EA090D66Ac6903cAE152d7E35EA0Ff59b42cc, // MetaMask Public Address
+            subscriptionId: 79670482528149814182213957532823682063266212056878174057017214077828570207991, // This is a real funded subscription ID from Chainlink
+            callBackGasLimit: 500000 // 500,000 gas units for the VRF callback
         });
     }
 
@@ -197,11 +199,12 @@ contract HelperConfig is CodeConstants, Script {
         localNetworkConfig = NetworkConfig({
             entranceFee: 0.01 ether, // 10,000,000,000,000,000 wei — higher than Sepolia for easier local testing
             interval: 30, // 30 seconds between rounds
-            vrfCoordinator: address(vrfCoordinatorMock),
             gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae, // Ignored by the mock — any value works locally
+            vrfCoordinator: address(vrfCoordinatorMock),
+            linkToken: address(linkToken),
+            account: 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38, // Defaul address in Base.sol
             subscriptionId: 0, // Placeholder — a valid ID is created and assigned in the deploy script
-            callBackGasLimit: 500000, // 500,000 gas units for the VRF callback
-            linkToken: address(linkToken)
+            callBackGasLimit: 500000 // 500,000 gas units for the VRF callback
         });
 
         return localNetworkConfig;
