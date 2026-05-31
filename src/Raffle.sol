@@ -511,6 +511,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
     function getPlayer(uint256 indexOfPlayer) external view returns (address) {
         return s_players[indexOfPlayer];
     }
+
+    /**
+     * @notice Returns the address of the most recently selected raffle winner.
+     * @return The wallet address of the last winner, or address(0) if no
+     *         winner has been selected yet.
+     */
+    function getRecentWinner() external view returns (address) {
+        return s_recentWinner;
+    }
 }
 
 /**
