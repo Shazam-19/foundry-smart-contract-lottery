@@ -476,31 +476,79 @@ contract RaffleTest is Test {
         VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(randomRequestId, address(raffle));
     }
 
-    /*
+    /**
+     * @dev Verifies the full end-to-end raffle flow:
+     *      1. Multiple players enter the raffle.
+     *      2. performUpkeep() triggers a VRF randomness request.
+     *      3. fulfillRandomWords() selects a winner, resets state, and pays out.
+     *
+     *      The `raffleEntered` modifier pre-enters PLAYER before this test runs,
+     *      so the total player count is additionalEntrants + 1.
+     *
+     *      expectedWinner is address(1) because the VRF mock returns a predictable
+     *      random value, and randomWords[0] % 4 resolves to index 0 → address(1).
+     */
     function testFulfillrandomWordsPicksWinnerThenResetAndSendsMoney() public raffleEntered {
         // Arrange
         uint256 startingIndex = 1;
-        uint256 additionalEntrants = 3; // 4 total
+        uint256 additionalEntrants = 3; // 3 extra players + PLAYER from modifier = 4 total
+        address expectedWinner = address(1);
 
+        // Enter additional players into the raffle.
+        // hoax() combines vm.prank() and vm.deal() — it funds and impersonates
+        // the address in a single call, then reverts to the original sender after.
         for (uint256 i = startingIndex; i < startingIndex + additionalEntrants; i++) {
             address newPlayer = address(uint160(i));
             hoax(newPlayer, 1 ether);
             raffle.enterRaffle{value: enteranceFee}();
         }
 
+        // Capture pre-draw values to compare against after the draw.
         uint256 startingTimeStamp = raffle.getLastTimeStamp();
+        uint256 winnerStartingBalance = expectedWinner.balance;
 
-        // Begin recording all events emitted during the transaction.
+        // Act
+
+        // Begin recording all events emitted from this point forward.
+        // Needed to extract the VRF requestId from the emitted logs.
         vm.recordLogs();
 
-        // Execute upkeep. This should request randomness and update
-        // the raffle state to CALCULATING.
+        // Trigger upkeep — transitions raffle to CALCULATING and emits a VRF request.
         raffle.performUpkeep("");
 
-        // Retrieve all logs emitted during the upkeep call.
+        // Retrieve all logs emitted during performUpkeep().
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        bytes32 requestId = entires[1].topics[1];
+        // Extract the requestId from the second log entry's second topic.
+        // entries[1] is the RandomWordsRequested event emitted by the VRF coordinator.
+        // topics[1] is the requestId — topics[0] is always the event signature hash.
+        bytes32 requestId = entries[1].topics[1];
+
+        // Simulate the Chainlink VRF callback — delivers the random result to the raffle.
+        // On a real network, the VRF oracle would call this automatically.
+        // The mock allows us to trigger it manually in tests.
+        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(uint256(requestId), address(raffle));
+
+        // Assert
+
+        address recentWinner = raffle.getRecentWinner();
+        Raffle.RaffleState raffleState = raffle.getRaffleState();
+        uint256 winnerBalance = recentWinner.balance;
+        uint256 endingTimeStamp = raffle.getLastTimeStamp();
+
+        // Total prize = entranceFee × total number of players.
+        uint256 prize = enteranceFee * (additionalEntrants + 1);
+
+        // Verify the correct winner was selected.
+        assert(recentWinner == expectedWinner);
+
+        // Verify the raffle state was reset to OPEN (0) after the draw.
+        assert(uint256(raffleState) == 0);
+
+        // Verify the winner received the full prize pool.
+        assert(winnerBalance == winnerStartingBalance + prize);
+
+        // Verify the timestamp was updated, confirming a new round started.
+        assert(endingTimeStamp > startingTimeStamp);
     }
-    */
 }

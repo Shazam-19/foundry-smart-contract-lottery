@@ -165,6 +165,8 @@ contract FundSubscription is Script, CodeConstants {
         if (block.chainid == LOCAL_CHAIN_ID) {
             // On Anvil, fund the mock coordinator directly — no real LINK token exists.
             vm.startBroadcast();
+            // Fund the VRFCoordinatorV2_5Mock subscription with 100x the previous amount 
+            // to prevent insufficient balance errors during testing and repeated VRF requests.
             VRFCoordinatorV2_5Mock(vrfCoordinator).fundSubscription(subscriptionId, FUND_AMOUNT * 100);
             vm.stopBroadcast();
         } else {
