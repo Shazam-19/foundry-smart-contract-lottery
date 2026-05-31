@@ -520,6 +520,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
     function getRecentWinner() external view returns (address) {
         return s_recentWinner;
     }
+
+    /**
+     * @notice Returns the timestamp of the last completed raffle round.
+     * @return The Unix timestamp (in seconds) of the last round's completion,
+     *         or the deployment timestamp if no round has completed yet.
+     */
+    function getLastTimeStamp() external view returns (uint256) {
+        return s_lastTimeStamp;
+    }
 }
 
 /**

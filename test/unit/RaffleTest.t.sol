@@ -475,4 +475,32 @@ contract RaffleTest is Test {
         // has no record of it and rejects it; triggering the expected revert.
         VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(randomRequestId, address(raffle));
     }
+
+    /*
+    function testFulfillrandomWordsPicksWinnerThenResetAndSendsMoney() public raffleEntered {
+        // Arrange
+        uint256 startingIndex = 1;
+        uint256 additionalEntrants = 3; // 4 total
+
+        for (uint256 i = startingIndex; i < startingIndex + additionalEntrants; i++) {
+            address newPlayer = address(uint160(i));
+            hoax(newPlayer, 1 ether);
+            raffle.enterRaffle{value: enteranceFee}();
+        }
+
+        uint256 startingTimeStamp = raffle.getLastTimeStamp();
+
+        // Begin recording all events emitted during the transaction.
+        vm.recordLogs();
+
+        // Execute upkeep. This should request randomness and update
+        // the raffle state to CALCULATING.
+        raffle.performUpkeep("");
+
+        // Retrieve all logs emitted during the upkeep call.
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        bytes32 requestId = entires[1].topics[1];
+    }
+    */
 }
