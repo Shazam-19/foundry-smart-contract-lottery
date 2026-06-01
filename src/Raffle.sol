@@ -136,7 +136,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // ── Raffle Configuration ───────────────────────────────────────────────
 
     // The minimum amount of ETH (in wei) a user must send to enter the raffle.
-    uint256 private immutable i_enteranceFee;
+    uint256 private immutable i_entranceFee;
 
     // The minimum time (in seconds) that must elapse between raffle rounds.
     // Prevents a new round from being triggered too soon after the last one.
@@ -232,14 +232,14 @@ contract Raffle is VRFConsumerBaseV2Plus {
      *                         fulfillRandomWords() logic is complex or stores many values.
      */
     constructor(
-        uint256 enteranceFee,
+        uint256 entranceFee,
         uint256 interval,
         address vrfCoordinator,
         bytes32 gasLane,
         uint256 subscriptionId,
         uint32 callBackGasLimit
     ) VRFConsumerBaseV2Plus(vrfCoordinator) {
-        i_enteranceFee = enteranceFee;
+        i_entranceFee = entranceFee;
         i_interval = interval;
 
         // Start the clock for the first round at the moment of deployment.
@@ -275,7 +275,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
      *             Slightly less readable than require, but preferred in production.
      */
     function enterRaffle() external payable {
-        if (msg.value < i_enteranceFee) {
+        if (msg.value < i_entranceFee) {
             revert Raffle__SendMoreToEnterRaffle();
         }
 
@@ -492,7 +492,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * @return The entrance fee in wei (1 ETH = 1e18 wei).
      */
     function getEntranceFee() external view returns (uint256) {
-        return i_enteranceFee;
+        return i_entranceFee;
     }
 
     /**

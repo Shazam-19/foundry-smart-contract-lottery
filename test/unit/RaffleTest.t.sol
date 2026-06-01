@@ -54,7 +54,7 @@ contract RaffleTest is CodeConstants, Test {
      * Unpacked from HelperConfig in setUp() so individual tests
      * can reference them directly without going through the struct.
      */
-    uint256 enteranceFee;
+    uint256 entranceFee;
     uint256 interval;
     address vrfCoordinator;
     bytes32 gasLane;
@@ -90,7 +90,7 @@ contract RaffleTest is CodeConstants, Test {
         // Fetch the network config and unpack it into local variables
         // so individual tests can access parameters like enteranceFee directly.
         HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
-        enteranceFee = config.entranceFee;
+        entranceFee = config.entranceFee;
         interval = config.interval;
         vrfCoordinator = config.vrfCoordinator;
         gasLane = config.gasLane;
@@ -145,7 +145,7 @@ contract RaffleTest is CodeConstants, Test {
         vm.prank(PLAYER);
 
         // Act
-        raffle.enterRaffle{value: enteranceFee}();
+        raffle.enterRaffle{value: entranceFee}();
 
         // Assert
         address playerRecorded = raffle.getPlayer(0);
@@ -176,7 +176,7 @@ contract RaffleTest is CodeConstants, Test {
         emit RaffleEntered(PLAYER);
 
         // Assert — the actual call; Foundry checks the emitted event matches
-        raffle.enterRaffle{value: enteranceFee}();
+        raffle.enterRaffle{value: entranceFee}();
     }
 
     /**
@@ -195,7 +195,7 @@ contract RaffleTest is CodeConstants, Test {
     function testDontAllowPlayersToEnterWhileRaffleIsCalculating() public {
         // Arrange — enter the raffle and advance time to make upkeep valid
         vm.prank(PLAYER);
-        raffle.enterRaffle{value: enteranceFee}();
+        raffle.enterRaffle{value: entranceFee}();
 
         // vm.warp() fast-forwards the block timestamp by (interval + 1) seconds.
         // The +1 ensures we are strictly past the interval, not exactly at it.
@@ -220,7 +220,7 @@ contract RaffleTest is CodeConstants, Test {
         // Act / Assert — attempting to enter while CALCULATING should revert
         vm.expectRevert(Raffle.Raffle__RaffleNotOpen.selector);
         vm.prank(PLAYER);
-        raffle.enterRaffle{value: enteranceFee}();
+        raffle.enterRaffle{value: entranceFee}();
     }
 
     /**
@@ -253,7 +253,7 @@ contract RaffleTest is CodeConstants, Test {
     function testCheckUpkeepReturnsFalseIfRaffleIsNotOpen() public {
         // Arrange
         vm.prank(PLAYER);
-        raffle.enterRaffle{value: enteranceFee}();
+        raffle.enterRaffle{value: entranceFee}();
         vm.warp(block.timestamp + interval + 1);
         vm.roll(block.number + 1);
 
@@ -288,7 +288,7 @@ contract RaffleTest is CodeConstants, Test {
         vm.prank(PLAYER);
 
         // Simulate PLAYER entering the raffle
-        raffle.enterRaffle{value: enteranceFee}();
+        raffle.enterRaffle{value: entranceFee}();
 
         // Move blockchain time forward past the upkeep interval
         vm.warp(block.timestamp + interval + 1);
@@ -325,10 +325,10 @@ contract RaffleTest is CodeConstants, Test {
         vm.prank(PLAYER);
 
         // PLAYER enters the raffle and sends ETH
-        raffle.enterRaffle{value: enteranceFee}();
+        raffle.enterRaffle{value: entranceFee}();
 
         // Update expected values after entering
-        currentBalance += enteranceFee;
+        currentBalance += entranceFee;
         numPlayers = 1;
 
         // Act / Assert
@@ -384,7 +384,7 @@ contract RaffleTest is CodeConstants, Test {
         vm.prank(PLAYER);
 
         // Simulate PLAYER entering the raffle
-        raffle.enterRaffle{value: enteranceFee}();
+        raffle.enterRaffle{value: entranceFee}();
 
         // Move blockchain time forward past the upkeep interval
         vm.warp(block.timestamp + interval + 1);
@@ -523,7 +523,7 @@ contract RaffleTest is CodeConstants, Test {
             // Path: uint256 → uint160 → address
             address newPlayer = address(uint160(i));
             hoax(newPlayer, 1 ether);
-            raffle.enterRaffle{value: enteranceFee}();
+            raffle.enterRaffle{value: entranceFee}();
         }
 
         // Capture pre-draw values to compare against after the draw.
@@ -572,7 +572,7 @@ contract RaffleTest is CodeConstants, Test {
         uint256 endingTimeStamp = raffle.getLastTimeStamp();
 
         // Total prize = entranceFee × total number of players.
-        uint256 prize = enteranceFee * (additionalEntrants + 1);
+        uint256 prize = entranceFee * (additionalEntrants + 1);
 
         // Verify the correct winner was selected.
         assertEq(recentWinner, expectedWinner);
