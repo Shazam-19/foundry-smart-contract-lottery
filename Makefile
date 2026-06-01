@@ -10,3 +10,6 @@ install :; forge install Cyfrin/foundry-devops && forge install smartcontractkit
 
 deploy-sepolia :
 	@forge script script/DeployRaffle.s.sol:DeployRaffle --rpc-url $(SEPOLIA_RPC_URL) --account myaccount --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+
+verfiy-contract-sepolia :
+	@forge verify-contract $(DEPLOYED_CONTRACT_ADDRESS) src/Raffle.sol:Raffle --etherscan-api-key $(ETHERSCAN_API_KEY) --rpc-url $(SEPOLIA_RPC_URL) --show-standard-json-input > json.json
