@@ -521,6 +521,12 @@ contract RaffleTest is CodeConstants, Test {
             // uint256 (i) cannot be cast to address directly — it must go through uint160 first
             // because an Ethereum address is 20 bytes (160 bits) wide.
             // Path: uint256 → uint160 → address
+
+            // casting to 'uint160' is safe because we intentionally use small,
+            // bounded sequential test values (i starts at 1 and only generates
+            // deterministic mock addresses well within the 160-bit address space).
+            // This is strictly for test purposes and cannot overflow uint160.
+            // forge-lint: disable-next-line(unsafe-typecast)
             address newPlayer = address(uint160(i));
             hoax(newPlayer, 1 ether);
             raffle.enterRaffle{value: entranceFee}();
