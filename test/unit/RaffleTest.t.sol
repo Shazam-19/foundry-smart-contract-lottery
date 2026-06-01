@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {DeployRaffle} from "script/DeployRaffle.s.sol";
 import {Raffle} from "../../src/Raffle.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
@@ -575,18 +575,18 @@ contract RaffleTest is CodeConstants, Test {
         uint256 prize = enteranceFee * (additionalEntrants + 1);
 
         // Verify the correct winner was selected.
-        assert(recentWinner == expectedWinner);
+        assertEq(recentWinner, expectedWinner);
 
         // Verify the raffle state was reset to OPEN (0) after the draw.
-        assert(uint256(raffleState) == 0);
+        assertEq(uint256(raffleState), 0);
 
         // Verify the winner received the full prize pool.
         // Since winnerStartingBalance ≈ 0, this effectively asserts:
         // winnerBalance == prize (the full pool paid out to the winner).
-        assert(winnerBalance == winnerStartingBalance + prize);
+        assertEq(winnerBalance, winnerStartingBalance + prize);
 
         // Verify the timestamp was updated, confirming a new round started.
-        assert(endingTimeStamp > startingTimeStamp);
+        assertGt(endingTimeStamp, startingTimeStamp);
     }
 }
 
