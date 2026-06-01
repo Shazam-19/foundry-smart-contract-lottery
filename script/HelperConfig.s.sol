@@ -156,7 +156,7 @@ contract HelperConfig is CodeConstants, Script {
      */
     function getSepoliaEthConfig() public pure returns (NetworkConfig memory) {
         return NetworkConfig({
-            entranceFee: 0.001 ether, // 10,000,000,000,000,000 wei (1e16)
+            entranceFee: 0.001 ether, // 1000,000,000,000,000 wei (1e15)
             interval: 30, // 30 seconds between rounds
             gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
             vrfCoordinator: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
