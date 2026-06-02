@@ -33,6 +33,11 @@ import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFCo
 // build and encode the randomness request sent to the VRF coordinator.
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
+// Forge's debugging utility.
+// Allows printing values and execution traces to the terminal during local
+// development and testing. Should not be relied on in production logic.
+import {console} from "forge-std/console.sol";
+
 /**
  * @title   Raffle
  * @author  Abdelrahman Sayed
@@ -275,10 +280,26 @@ contract Raffle is VRFConsumerBaseV2Plus {
      *             Slightly less readable than require, but preferred in production.
      */
     function enterRaffle() external payable {
+        // Debug logs used during local testing and development.
+        // These are provided by Hardhat's console.sol and help verify
+        // contract execution and transaction details.
+
+        // IMPORTANT:
+        // Remove or comment out all console.log statements before
+        // deploying to a live network. They are intended only for
+        // debugging and can increase deployment size and execution costs.
+        console.log("Welcome to the Best Lottery Raffle!");
+        console.log(msg.sender);
+
+        // Ensure the user has sent at least the required entrance fee.
+        // If not, revert the transaction with a custom error.
         if (msg.value < i_entranceFee) {
             revert Raffle__SendMoreToEnterRaffle();
         }
 
+        // Verify that the raffle is currently open for new entrants.
+        // If the raffle is calculating a winner or otherwise closed,
+        // prevent additional entries.
         if (s_raffleState != RaffleState.OPEN) {
             revert Raffle__RaffleNotOpen();
         }
