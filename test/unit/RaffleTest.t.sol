@@ -1,6 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+/*
+To run only a specific test in debug mode, use:
+'forge test --mt [TEST FUNCTION NAME] --debug'
+
+Explanation:
+ --mt <test-name> : runs a single test function matching the given name
+ --debug          : enables step-by-step debugging and verbose output
+
+ This is useful for inspecting test execution and intermediate states.
+ Remove --debug for normal test runs or CI pipelines to avoid extra output.
+
+# Generate a test coverage report for the smart contracts using Foundry.
+# The report is in debug format and saved to coverage.txt, overwriting any previous report.
+'forge coverage --report debug > coverage.txt'
+*/
+
 import {Test, console} from "forge-std/Test.sol";
 import {DeployRaffle} from "script/DeployRaffle.s.sol";
 import {Raffle} from "../../src/Raffle.sol";

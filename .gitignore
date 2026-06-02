@@ -15,3 +15,6 @@ docs/
 
 # Raffle JSON file
 json.json
+
+# Coverage Test
+coverage.txt
