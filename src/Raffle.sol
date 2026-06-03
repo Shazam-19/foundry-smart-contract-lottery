@@ -174,6 +174,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // then back to OPEN once the winner has been selected and paid.
     RaffleState private s_raffleState;
 
+    // Stores the most recent VRF requestId issued by performUpkeep().
+    // Used in fulfillRandomWords() to verify the callback matches the
+    // last known request and ignore any unexpected or duplicate calls.
+    uint256 private s_lastRequestId;
+
     // Maps each winner's address to the amount of ETH they are owed.
     // Replaces the direct transfer inside fulfillRandomWords() to keep
     // the VRF callback revert-free as required by Chainlink's security guidelines.
@@ -209,6 +214,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // Indexed on `requested` (the request ID) so off-chain services can
     // track the request and correlate it with the eventual callback.
     event RequestedRaffleWinner(uint256 indexed requestId);
+
+    // Emitted when fulfillRandomWords() receives an unrecognized requestId.
+    // Used for off-chain monitoring instead of reverting, since fulfillRandomWords()
+    // must never revert per Chainlink VRF security requirements.
+    event InvalidRequestId(uint256 indexed requestId);
 
     /* ─────────────────────────────────────────────
      * Constructor
@@ -426,11 +436,18 @@ contract Raffle is VRFConsumerBaseV2Plus {
             })
         );
 
-        // Emitted when a VRF randomness request is submitted.
-        // The requestId can be used to track the request off-chain and
-        // correlate it with the fulfillment callback.
-        // Note: The VRF Coordinator also emits events for this request so this is a bit redundant
-        emit RequestedRaffleWinner(requestId);
+        s_lastRequestId = requestId;
+
+        /**
+         * Emitted when a VRF randomness request is submitted.
+         *  s_lastRequestId is used instead of requestId so that the emitted
+         *  value reflects what is actually stored in contract state.
+         *  The requestId can be used to track the request off-chain and
+         *  correlate it with the fulfillment callback.
+         *  Note: The VRF Coordinator also emits its own event for this request,
+         *  so this is slightly redundant but useful for off-chain indexing.
+         */
+        emit RequestedRaffleWinner(s_lastRequestId);
     }
 
     /**
@@ -457,15 +474,22 @@ contract Raffle is VRFConsumerBaseV2Plus {
      *                    to derive a winner index via modulo.
      */
     function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
-        /* Checks */
+        /* Checks (Conditionals) */
 
-        /* Conditionals:
+        // Ignore fulfillments that don't match the last known request.
+        // Returns early instead of reverting; fulfillRandomWords() must
+        // never revert per Chainlink VRF security requirements.
+        if (requestId != s_lastRequestId) {
+            emit InvalidRequestId(requestId);
+            return;
+        }
+
+        /*
            Guard against an empty players array before using modulo.
            Should never happen under normal flow, but acts as a safety net
            in case state is corrupted or the callback fires unexpectedly.
-        */
 
-        /* This is a wrong implementation since it might revert 'fulfillRandomWords'
+           This is a wrong implementation since it might revert 'fulfillRandomWords'
            Thus, VRF will never retry & funds could be locked forever!
             if (s_players.length == 0) {
                 revert Raffle__NoPlayers();
@@ -551,9 +575,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
            without claiming; their balance accumulates safely.
         */
         s_pendingWithdrawals[recentWinner] += address(this).balance;
-
-        // Prevent unused parameter warning
-        requestId;
     }
 
     /**
