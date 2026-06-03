@@ -71,14 +71,14 @@ A decentralized raffle contract where users pay an entrance fee for a chance to 
 
 ## Built With
 
-- [Solidity ^0.8.19](https://soliditylang.org/)
-- [Foundry — development framework (forge, cast, anvil)](https://getfoundry.sh/)
-- [Chainlink-VRF (verifiable random number generation) v2.5](https://chain.link/vrf)
-- [Chainlink Automation — decentralized upkeep triggering](https://chain.link/automation)
-- [forge-std](https://github.com/foundry-rs/forge-std)
-- [foundry-devops — resolves the most recently deployed contract address](https://github.com/Cyfrin/foundry-devops)
-- [OpenZeppelin-Contracts - secure contract standards and security](https://github.com/openzeppelin/openzeppelin-contracts)
-- [Solady - gas-efficient utilities and optimizations](https://github.com/vectorized/solady)
+- [Solidity](https://soliditylang.org/) `^0.8.19`
+- [Foundry](https://getfoundry.sh/) — Smart contract development framework
+- [Chainlink VRF](https://chain.link/vrf) v2.5 — Verifiable randomness
+- [Chainlink Automation](https://chain.link/automation) — Automated upkeep execution
+- [forge-std](https://github.com/foundry-rs/forge-std) — Testing utilities
+- [foundry-devops](https://github.com/Cyfrin/foundry-devops) — Deployment helpers
+- [OpenZeppelin Contracts](https://github.com/openzeppelin/openzeppelin-contracts) — Security-focused contract standards
+- [Solady](https://github.com/vectorized/solady) — Gas-optimized contract utilities
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
