@@ -1,3 +1,10 @@
+<a id="readme-top"></a>
+
+# Lottery Raffle
+A decentralized lottery raffle smart contract built with Solidity and Foundry, using Chainlink VRF 2.5 and Automation for verifiable on-chain randomness.
+
+---
+
 <!-- TABLE OF CONTENTS -->
 <details>
   <summary>Table of Contents</summary>
@@ -35,7 +42,7 @@
 
 ## About The Project
 
-A decentralized raffle contract where users pay an entrance fee for a chance to be selected as the winner. The winner selection process is fully automated and provably fair — no central authority can influence or predict the outcome.
+A decentralized raffle contract where users pay an entrance fee for a chance to be selected as the winner. The winner selection process is fully automated and provably fair; no central authority can influence or predict the outcome.
 
 **Key highlights:**
 
@@ -64,9 +71,13 @@ A decentralized raffle contract where users pay an entrance fee for a chance to 
 
 ## Built With
 
-[![Solidity][solidity-shield]][solidity-url]
-[![Foundry][foundry-shield]][foundry-url]
-[![Chainlink VRF][chainlink-shield]][chainlink-url]
+- [Solidity](https://soliditylang.org/)
+- [Foundry](https://getfoundry.sh/)
+- [Chainlink-VRF]: https://chain.link/vrf
+- [forge-std](https://github.com/foundry-rs/forge-std)
+- [foundry-devops](https://github.com/Cyfrin/foundry-devops)
+- [OpenZeppelin-Contracts](https://github.com/openzeppelin/openzeppelin-contracts)
+- [Solady](https://github.com/vectorized/solady)
 
 - **Solidity** `^0.8.19`
 - **Foundry** — development framework (forge, cast, anvil)
@@ -82,8 +93,11 @@ A decentralized raffle contract where users pay an entrance fee for a chance to 
 
 ### Prerequisites
 
-- [Foundry](https://book.getfoundry.sh/getting-started/installation) installed
-- [Git](https://git-scm.com/) installed
+- [Foundry](https://getfoundry.sh/) installed
+- [Git](https://git-scm.com/)
+- An RPC URL (e.g. from [Alchemy](https://alchemy.com/) or [Infura](https://infura.io/))
+- A funded wallet private key (for testnet deployment)
+- An [Etherscan API key](https://etherscan.io/myapikey) (for contract verification)
 
 Verify your Foundry installation:
 
@@ -96,8 +110,8 @@ forge --version
 1. Clone the repository:
 
 ```sh
-git clone https://github.com/your_username/raffle.git
-cd raffle
+git clone https://github.com/Shazam-19/foundry-smart-contract-lottery.git
+cd foundry-smart-contract-lottery
 ```
 
 2. Install dependencies:
@@ -152,15 +166,10 @@ Before deploying to Sepolia, make sure you have:
 2. Your `subscriptionId` updated in `HelperConfig.s.sol`.
 3. Your `.env` file configured.
 
-Then deploy:
+Then deploy using the Makefile command:
 
 ```sh
-forge script script/DeployRaffle.s.sol \
-  --rpc-url $SEPOLIA_RPC_URL \
-  --private-key $PRIVATE_KEY \
-  --broadcast \
-  --verify \
-  --etherscan-api-key $ETHERSCAN_API_KEY
+make deploy-sepolia
 ```
 
 ### VRF Subscription Management
@@ -202,7 +211,7 @@ forge test
 Run a specific test by name:
 
 ```sh
-forge test --mt testFulfillrandomWordsPicksWinnerThenResetAndSendsMoney -v
+forge test --mt testFulfillrandomWordsPicksWinnerThenResetAndSendsMoney -vvvv
 ```
 
 Run tests with debug output:
@@ -315,23 +324,11 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## Acknowledgments
 
-- [Chainlink VRF v2.5 Docs](https://docs.chain.link/vrf/v2-5/overview/subscription)
-- [Chainlink VRF Security Considerations](https://docs.chain.link/vrf/v2-5/security)
 - [Foundry Book](https://book.getfoundry.sh/)
 - [Patrick Collins — Foundry Course](https://github.com/Cyfrin/foundry-full-course-cu)
-- [OpenChain — Selector & Event Lookup](https://openchain.xyz)
+- [Chainlink VRF v2.5 Docs](https://docs.chain.link/vrf/v2-5/overview/subscription)
 - [vrf.chain.link — Subscription Manager](https://vrf.chain.link)
+- [Chainlink VRF Security Considerations](https://docs.chain.link/vrf/v2-5/security)
+- [OpenChain — Selector & Event Lookup](https://openchain.xyz)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
-
----
-
-<!-- MARKDOWN LINKS & BADGES -->
-[license-shield]: https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge
-[license-url]: LICENSE
-[solidity-shield]: https://img.shields.io/badge/Solidity-0.8.19-363636?style=for-the-badge&logo=solidity
-[solidity-url]: https://soliditylang.org/
-[foundry-shield]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C?style=for-the-badge
-[foundry-url]: https://book.getfoundry.sh/
-[chainlink-shield]: https://img.shields.io/badge/Chainlink-VRF%20v2.5-375BD2?style=for-the-badge&logo=chainlink
-[chainlink-url]: https://docs.chain.link/vrf/v2-5/overview/subscription
