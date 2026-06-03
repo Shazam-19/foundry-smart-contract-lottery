@@ -66,6 +66,8 @@ A decentralized raffle contract where users pay an entrance fee for a chance to 
 - ⚙️ **Centralised config management** — `HelperConfig.s.sol` resolves all network-specific parameters automatically, keeping deploy scripts clean and portable.
 - 🧪 **Comprehensive test suite** — unit, integration, fuzz, and fork tests using Foundry's `forge-std` framework.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
 ## How It Works
@@ -173,9 +175,12 @@ forge build
 Create a `.env` file in the project root:
 
 ```env
-PRIVATE_KEY=your_wallet_private_key
-SEPOLIA_RPC_URL=your_sepolia_rpc_url
-ETHERSCAN_API_KEY=your_etherscan_api_key
+SEPOLIA_RPC_URL="your_sepolia_rpc_url"
+ETH_MAINNET_RPC_URL="your_alchemy_rpc_url"
+ALCHEMY_API_KEY="your_alchemy_api_key"
+ETHERSCAN_API_KEY="your_etherscan_api_key"
+PRIVATE_KEY="your_wallet_private_key"
+DEPLOYED_CONTRACT_ADDRESS="deployed_contract_address_on_sepolia"
 ```
 
 > ⚠️ Never commit your `.env` file or expose your private key. Add `.env` to your `.gitignore`.
