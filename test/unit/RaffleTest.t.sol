@@ -573,15 +573,21 @@ contract RaffleTest is CodeConstants, Test {
         // topics[1] is the 'requestId'; topics[0] is always the event signature hash retuned by VRFCoordinatorV2_5Mock.sol
         bytes32 requestId = entries[1].topics[1];
 
-        // Simulate the Chainlink VRF callback — delivers the random result to the raffle.
+        // Simulate the Chainlink VRF callback; delivers the random result to the raffle.
         // On a real network, the VRF oracle would call this automatically.
         // The mock allows us to trigger it manually in tests.
         VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(uint256(requestId), address(raffle));
 
-        // Assert
-
         // Fetch the winner selected by fulfillRandomWords().
         address recentWinner = raffle.getRecentWinner();
+
+        // Winner must now manually claim their prize via claimPrize().
+        // fulfillRandomWords() no longer pushes ETH directly — it stores the
+        // pending amount in s_pendingWithdrawals to keep the VRF callback revert-free.
+        vm.prank(recentWinner);
+        raffle.claimPrize();
+
+        // Assert
 
         // Fetch the raffle state — should be OPEN (0) after the draw resets it.
         Raffle.RaffleState raffleState = raffle.getRaffleState();
