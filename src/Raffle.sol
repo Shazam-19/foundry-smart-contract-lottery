@@ -448,12 +448,24 @@ contract Raffle is VRFConsumerBaseV2Plus {
      */
     function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
         /* Checks */
-        // Conditionals:
-        // Guard against an empty players array before using modulo.
-        // Should never happen under normal flow, but acts as a safety net
-        // in case state is corrupted or the callback fires unexpectedly.
+
+        /* Conditionals:
+           Guard against an empty players array before using modulo.
+           Should never happen under normal flow, but acts as a safety net
+           in case state is corrupted or the callback fires unexpectedly.
+        */
+
+        /* This is a wrong implementation since it might revert 'fulfillRandomWords'
+           Thus, VRF will never retry & funds could be locked forever!
+            if (s_players.length == 0) {
+                revert Raffle__NoPlayers();
+            }
+        */
+
+        // A more safer approach would be to return instead of revert, so VRF won't retry a reverted callback
         if (s_players.length == 0) {
-            revert Raffle__NoPlayers();
+            s_raffleState = RaffleState.OPEN;
+            return;
         }
 
         /* Effect (Internal Contract State) */

@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+// Reads a uint256 value from an environment (.env file) variable (e.g., a private key) securely at runtime.
+// Commonly used in Foundry scripts to avoid hardcoding sensitive data like PRIVATE_KEY when broadcasting transactions.
+// uint256 privateKey = vm.envUint("PRIVATE_KEY");
+// I didn't use it in this project yet.
+
 import {Script, console} from "forge-std/Script.sol";
 import {Raffle} from "src/Raffle.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";

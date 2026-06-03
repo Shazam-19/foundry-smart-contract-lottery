@@ -487,7 +487,7 @@ contract RaffleTest is CodeConstants, Test {
      * @dev Stateless fuzz test — verifies that fulfillRandomWords() can only
      *      be called with a valid requestId produced by performUpkeep().
      *
-     *      Foundry automatically runs this test with many random values for
+     *      Foundry automatically runs this test (fuzz test) with many random values for
      *      `randomRequestId`. Any arbitrary ID that was not issued by the
      *      coordinator should be rejected with InvalidRequest.
      *
