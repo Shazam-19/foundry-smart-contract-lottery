@@ -87,6 +87,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // Acts as a safety net in case the array is somehow cleared before the VRF callback fires.
     error Raffle__NoPlayers();
 
+    // Thrown when a user attempts to withdraw funds but has no pending balance
+    // since their address was never written to the mapping, their balance is 0 and the call reverts immediately.
+    // Only the winner's address was written to the mapping inside 'fulfillRandomWords()'
+    error Raffle__NoPendingWithdrawal();
+
     /* ─────────────────────────────────────────────
      * Type Declarations
      * ─────────────────────────────────────────────
@@ -168,6 +173,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // Set to CALCULATING while waiting for Chainlink VRF to respond,
     // then back to OPEN once the winner has been selected and paid.
     RaffleState private s_raffleState;
+
+    // Maps each winner's address to the amount of ETH they are owed.
+    // Replaces the direct transfer inside fulfillRandomWords() to keep
+    // the VRF callback revert-free as required by Chainlink's security guidelines.
+    mapping(address => uint256) private s_pendingWithdrawals;
 
     /* ─────────────────────────────────────────────
      * Events
@@ -495,20 +505,96 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
         /* Interactions (External Contract Interactions) */
 
-        // Transfer the entire contract balance to the winner.
-        // .call is the recommended way to send ETH — it forwards all available
-        // gas and returns a success bool rather than throwing on failure.
-        // The empty string ("") means we are sending ETH with no function call data.
-        (bool success,) = recentWinner.call{value: address(this).balance}("");
+        /* ─────────────────────────────────────────────
+        * Push vs Pull Pattern
+        * ─────────────────────────────────────────────
+        * There are two ways to send ETH to a winner:
+        *
+        * PUSH (what we had before):
+        *   Transfer ETH directly inside fulfillRandomWords().
+        *   Problem: if the transfer fails (e.g. winner is a contract
+        *   that rejects ETH) to protect the funds, fulfillRandomWords() reverts.
+        *   Since Chainlink VRF never retries a reverted callback,
+        *   the raffle gets permanently stuck and funds are locked.
+        *   'call' is the recommended way to send ETH; it forwards all available
+        *   gas and returns a success bool rather than throwing on failure.
+        *   The empty string ("") means we are sending ETH with no function call data.
+        *
+        * // (bool success,) = recentWinner.call{value: address(this).balance}("");
+        *
+        * // if (!success) {
+        * //    revert Raffle__TransferFailed();
+        * // }
+        *
+        *
+        *
+        * PULL (what we use now):
+        *   Instead of sending ETH directly, we record how much the
+        *   winner is owed in a mapping. The winner then calls
+        *   claimPrize() themselves to withdraw it.
+        *   This keeps fulfillRandomWords() simple and revert-free,
+        *   which is a hard requirement from Chainlink VRF.
+        *
+        * This pattern is also known as the "withdrawal pattern" and
+        * is a widely recommended security practice in Solidity to
+        * avoid reentrancy and failed transfer issues.
+        *
+        * Example:
+        *   Round ends → winner = 0xABC → s_pendingWithdrawals[0xABC] = 2 ether
+        *   Winner later calls claimPrize() → 2 ether is transferred to 0xABC
+        */
 
-        // If the transfer failed (e.g. winner is a contract that rejects ETH),
-        // revert the entire transaction to protect the funds.
-        if (!success) {
-            revert Raffle__TransferFailed();
-        }
+        /* Record the winner's prize in the mapping instead of transferring directly.
+           address(this).balance at this point equals all accumulated entrance fees,
+           which is the total prize pool for this round.
+           += is used instead of = in case the same address wins multiple rounds
+           without claiming; their balance accumulates safely.
+        */
+        s_pendingWithdrawals[recentWinner] += address(this).balance;
 
         // Prevent unused parameter warning
         requestId;
+    }
+
+    /**
+     * @notice Allows the raffle winner to withdraw their prize.
+     * @dev    Uses the pull pattern — winners must claim their prize themselves
+     *         rather than receiving it automatically. This keeps fulfillRandomWords()
+     *         revert-free, which is required by Chainlink VRF security guidelines.
+     *
+     *         Follows the CEI pattern to prevent reentrancy:
+     *           1. Check  — verify the caller has a pending balance.
+     *           2. Effect — zero out the balance BEFORE transferring.
+     *           3. Interact — transfer ETH to the caller.
+     *
+     *         Zeroing the balance before the transfer is critical.
+     *         If we transferred first and then zeroed, a malicious contract
+     *         could re-enter claimPrize() before the balance is cleared
+     *         and drain the contract multiple times.
+     */
+    function claimPrize() external {
+        // Fetch the caller's pending balance.
+        uint256 amount = s_pendingWithdrawals[msg.sender];
+
+        // Revert if the caller has no prize to claim.
+        // Prevents unnecessary gas consumption on empty withdrawals.
+        if (amount == 0) revert Raffle__NoPendingWithdrawal();
+
+        // Zero out the balance BEFORE transferring — CEI pattern.
+        // This prevents reentrancy: if msg.sender is a malicious contract
+        // that calls claimPrize() again during the transfer, their balance
+        // is already 0 and the second call will revert safely.
+        s_pendingWithdrawals[msg.sender] = 0;
+
+        // Transfer the prize to the caller using .call — the recommended
+        // way to send ETH as it forwards all available gas and returns
+        // a success bool rather than throwing on failure.
+        (bool success,) = msg.sender.call{value: amount}("");
+
+        // If the transfer failed, revert to restore the zeroed balance.
+        // Note: this is the only safe place to revert on transfer failure
+        // since we are outside of fulfillRandomWords().
+        if (!success) revert Raffle__TransferFailed();
     }
 
     /* ─────────────────────────────────────────────
