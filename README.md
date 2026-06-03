@@ -55,6 +55,19 @@ A decentralized raffle contract where users pay an entrance fee for a chance to 
 
 ---
 
+## Features
+
+- 🎲 **Provably fair randomness** — Chainlink VRF v2.5 generates verifiable random numbers that cannot be manipulated by miners, validators, or the contract owner.
+- 🤖 **Fully automated draws** — Chainlink Automation monitors the contract and triggers `performUpkeep()` once all conditions are met — no manual intervention needed.
+- 🔒 **Reentrancy-safe prize distribution** — uses the pull (withdrawal) pattern with CEI ordering; winners call `claimPrize()` themselves rather than receiving ETH automatically.
+- 🛡️ **Request ID validation** — `fulfillRandomWords()` validates the incoming `requestId` against `s_lastRequestId` to reject unexpected or duplicate VRF callbacks.
+- ♻️ **Automatic round reset** — after each draw the contract resets `s_players`, `s_raffleState`, and `s_lastTimeStamp` so a new round begins immediately.
+- 🌐 **Multi-network support** — deploys to Sepolia testnet with real Chainlink infrastructure, or locally on Anvil with auto-deployed VRF and LINK mocks.
+- ⚙️ **Centralised config management** — `HelperConfig.s.sol` resolves all network-specific parameters automatically, keeping deploy scripts clean and portable.
+- 🧪 **Comprehensive test suite** — unit, integration, fuzz, and fork tests using Foundry's `forge-std` framework.
+
+---
+
 ## How It Works
 
 1. **Enter** — Players call `enterRaffle()` and send at least the entrance fee in ETH.
@@ -79,6 +92,40 @@ A decentralized raffle contract where users pay an entrance fee for a chance to 
 - [foundry-devops](https://github.com/Cyfrin/foundry-devops) — Deployment helpers
 - [OpenZeppelin Contracts](https://github.com/openzeppelin/openzeppelin-contracts) — Security-focused contract standards
 - [Solady](https://github.com/vectorized/solady) — Gas-optimized contract utilities
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Project Structure
+
+```
+raffle/
+├── foundry.toml                        # Foundry configuration
+├── Makefile                            # Shorthand commands for common tasks
+├── README.md
+│
+├── src/
+│   └── Raffle.sol                      # Core raffle contract
+│
+├── script/
+│   ├── DeployRaffle.s.sol              # Deployment script — deploys and wires everything
+│   ├── HelperConfig.s.sol              # Network config manager (Sepolia + Anvil)
+│   └── Interactions.s.sol             # VRF subscription scripts (Create, Fund, AddConsumer)
+│
+├── test/
+│   ├── unit/
+│   │   └── RaffleTest.t.sol            # Unit and fuzz tests for Raffle.sol
+│   └── mocks/
+│       └── LinkToken.sol               # Mock LINK token for local Anvil testing
+│
+└── lib/
+    ├── chainlink-evm/                  # Chainlink VRF contracts and mocks
+    ├── forge-std/                      # Foundry standard library
+    └── foundry-devops/                 # DevOps helpers (e.g. get_most_recent_deployment)
+```
+
+> Run `tree -L 2` in your project root to verify your local structure matches.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -296,6 +343,64 @@ This contract was designed with the following Chainlink VRF security guidelines 
 |---------|----------|-----|-------|
 | Sepolia Testnet | `11155111` | Real Chainlink VRF | Requires a funded subscription |
 | Anvil (Local) | `31337` | `VRFCoordinatorV2_5Mock` | Mocks deployed automatically |
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Roadmap
+
+- [x] Core raffle contract with entrance fee and player tracking
+- [x] Chainlink VRF v2.5 integration for provably fair randomness
+- [x] Chainlink Automation integration via `checkUpkeep` / `performUpkeep`
+- [x] Pull (withdrawal) pattern for safe prize distribution
+- [x] `requestId` validation to reject unexpected VRF callbacks
+- [x] Multi-network support (Sepolia + Anvil with mocks)
+- [x] Centralised `HelperConfig` for network-aware deployments
+- [x] Comprehensive test suite (unit, fuzz, fork)
+- [ ] Front-end interface for entering the raffle and tracking results
+- [ ] Support for additional testnets (e.g. Mumbai, Fuji)
+- [ ] ERC-20 token entrance fee support
+- [ ] Multiple concurrent raffle pools with different entry tiers
+- [ ] On-chain history of past winners
+
+See the [open issues](https://github.com/your_username/raffle/issues) for a full list of proposed features and known issues.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Contributing
+
+Contributions are what make the open source community such an amazing place to learn and grow. Any contributions you make are **greatly appreciated**.
+
+If you have a suggestion that would improve this project, please fork the repo and open a pull request. You can also open an issue with the tag `enhancement`.
+
+1. Fork the repository
+2. Create your feature branch:
+```sh
+git checkout -b feature/YourFeature
+```
+3. Commit your changes following the [Conventional Commits](https://www.conventionalcommits.org/) format:
+```sh
+git commit -m "feat: add your feature description"
+```
+4. Push to your branch:
+```sh
+git push origin feature/YourFeature
+```
+5. Open a Pull Request
+
+### Commit Prefix Guide
+
+| Prefix | Use for |
+|--------|---------|
+| `feat` | New feature or function |
+| `fix` | Bug fix |
+| `docs` | Documentation or comments only |
+| `refactor` | Code restructuring without behaviour change |
+| `test` | Adding or updating tests |
+| `chore` | Maintenance tasks (config, dependencies) |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
