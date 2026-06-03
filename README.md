@@ -102,7 +102,7 @@ A decentralized raffle contract where users pay an entrance fee for a chance to 
 ## Project Structure
 
 ```
-raffle/
+foundry-smart-contract-lottery/
 ├── foundry.toml                        # Foundry configuration
 ├── Makefile                            # Shorthand commands for common tasks
 ├── README.md
@@ -124,7 +124,9 @@ raffle/
 └── lib/
     ├── chainlink-evm/                  # Chainlink VRF contracts and mocks
     ├── forge-std/                      # Foundry standard library
-    └── foundry-devops/                 # DevOps helpers (e.g. get_most_recent_deployment)
+    ├── foundry-devops/                 # DevOps helpers (e.g. get_most_recent_deployment)
+    ├── openzeppelin-contracts/         # Security-focused contract standards
+    └── solady/                         # Gas-optimized contract utilities  
 ```
 
 > Run `tree -L 2` in your project root to verify your local structure matches.
@@ -369,7 +371,7 @@ This contract was designed with the following Chainlink VRF security guidelines 
 - [ ] Multiple concurrent raffle pools with different entry tiers
 - [ ] On-chain history of past winners
 
-See the [open issues](https://github.com/your_username/raffle/issues) for a full list of proposed features and known issues.
+See the [open issues](https://github.com/Shazam-19/foundry-smart-contract-lottery/issues) for a full list of proposed features and known issues.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -419,7 +421,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-## Author
+## Author(s)
 
 **Abdelrahman Sayed**
 
