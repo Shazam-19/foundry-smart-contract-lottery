@@ -203,7 +203,7 @@ contract HelperConfig is CodeConstants, Script {
             vrfCoordinator: address(vrfCoordinatorMock),
             linkToken: address(linkToken),
             account: 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38, // Defaul address in Base.sol
-            subscriptionId: 0, // Placeholder — a valid ID is created and assigned in the deploy script
+            subscriptionId: 0, // Placeholder; a valid ID is created and assigned in the deploy script
             callBackGasLimit: 500000 // 500,000 gas units for the VRF callback
         });
 

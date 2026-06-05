@@ -44,7 +44,7 @@ import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
  *   - createSubscription(address)  → used directly in other scripts
  *                                    (e.g. when deploying on Anvil)
  */
-contract CreateSubscription is Script {
+contract CreateSubscription is Script, CodeConstants {
     /**
      * @notice Reads the VRF coordinator address from HelperConfig and
      *         creates a subscription on the current network automatically.
@@ -95,8 +95,11 @@ contract CreateSubscription is Script {
         vm.stopBroadcast();
 
         // Log the subscription ID — copy this value into HelperConfig.s.sol.
-        console.log("The Subscription ID is: ", subId);
-        console.log("Please update the subscription ID in your HelperConfig.s.sol");
+        console.log("The Subscription ID Created by is: ", subId);
+
+        if (block.chainid != LOCAL_CHAIN_ID) {
+            console.log("Please update the subscription ID in your HelperConfig.s.sol");
+        }
 
         return (subId, vrfCoordinator);
     }
