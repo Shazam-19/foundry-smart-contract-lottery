@@ -224,4 +224,50 @@ contract InteractionsTest is Test {
         // Assert; second funding should increase the balance further.
         assert(balanceAfterSecondFunding > balanceAfterFirstFunding);
     }
+
+    /* ─────────────────────────────────────────────
+     * AddConsumer Tests
+     * ─────────────────────────────────────────────
+     */
+
+    /**
+     * @dev Verifies that addConsumer() successfully registers a contract
+     *      as an approved consumer on the VRF subscription.
+     *
+     *      Flow:
+     *        1. Create and fund a fresh subscription.
+     *        2. Register the deployed Raffle as a consumer via AddConsumer.
+     *        3. Query the coordinator's consumer list for the subscription.
+     *        4. Search the list for the Raffle address.
+     *        5. Assert it was found.
+     *
+     *      After registration, the coordinator will accept VRF requests
+     *      from the registered contract.
+     */
+    function testAddConsumerUsingConfig() public {
+        // Arrange; create and fund a subscription first.
+        CreateSubscription createSubscription = new CreateSubscription();
+        (uint256 subId,) = createSubscription.createSubscription(vrfCoordinator, account);
+
+        FundSubscription fundSubscription = new FundSubscription();
+        fundSubscription.fundSubscription(vrfCoordinator, subId, linkToken, account);
+
+        // Act; register the deployed raffle as a consumer.
+        AddConsumer addConsumer = new AddConsumer();
+        addConsumer.addConsumer(address(raffle), vrfCoordinator, subId, account);
+
+        // Assert; verify the raffle address appears in the subscription's consumer list.
+        // getSubscription() returns (balance, nativeBalance, reqCount, owner, consumers).
+        (,,,, address[] memory consumers) = VRFCoordinatorV2_5Mock(vrfCoordinator).getSubscription(subId);
+
+        // Search the consumers array for the raffle address.
+        bool isConsumerRegistered = false;
+        for (uint256 i = 0; i < consumers.length; i++) {
+            if (consumers[i] == address(raffle)) {
+                isConsumerRegistered = true;
+                break;
+            }
+        }
+        assert(isConsumerRegistered);
+    }
 }
