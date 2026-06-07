@@ -178,4 +178,32 @@ contract InteractionsTest is Test {
         (uint96 balance,,,,) = VRFCoordinatorV2_5Mock(vrfCoordinator).getSubscription(subId);
         assert(balance > 0);
     }
+
+    /**
+     * @dev Verifies that funding the same subscription twice accumulates
+     *      the balance rather than overwriting it.
+     *
+     *      Flow:
+     *        1. Create a fresh subscription.
+     *        2. Fund it once — record balance.
+     *        3. Fund it again — record balance.
+     *        4. Assert the second balance is greater than the first.
+     */
+    function testFundSubscriptionAccumulatesBalance() public {
+        // Arrange
+        CreateSubscription createSubscription = new CreateSubscription();
+        (uint256 subId,) = createSubscription.createSubscription(vrfCoordinator, account);
+
+        FundSubscription fundSubscription = new FundSubscription();
+
+        // Act; fund twice and capture balances after each funding.
+        fundSubscription.fundSubscription(vrfCoordinator, subId, linkToken, account);
+        (uint96 balanceAfterFirstFunding,,,,) = VRFCoordinatorV2_5Mock(vrfCoordinator).getSubscription(subId);
+
+        fundSubscription.fundSubscription(vrfCoordinator, subId, linkToken, account);
+        (uint96 balanceAfterSecondFunding,,,,) = VRFCoordinatorV2_5Mock(vrfCoordinator).getSubscription(subId);
+
+        // Assert; second funding should increase the balance further.
+        assert(balanceAfterSecondFunding > balanceAfterFirstFunding);
+    }
 }
