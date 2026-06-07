@@ -92,4 +92,33 @@ contract InteractionsTest is Test {
         // subscription ID that was used — regardless of HelperConfig's state.
         subscriptionId = raffle.getSubscriptionId();
     }
+
+    /* ─────────────────────────────────────────────
+     * CreateSubscription Tests
+     * ─────────────────────────────────────────────
+     */
+
+    /**
+     * @dev Verifies that createSubscriptionUsingConfig() produces a non-zero
+     *      subscription ID when resolving config automatically.
+     *
+     *      Flow:
+     *        1. Instantiate CreateSubscription.
+     *        2. Call createSubscriptionUsingConfig(); this internally creates
+     *           a new HelperConfig and a new VRFCoordinatorV2_5Mock.
+     *        3. Assert the returned subscription ID is non-zero.
+     *
+     *      Note: the returned coordinator address is discarded because
+     *      createSubscriptionUsingConfig() deploys its own HelperConfig
+     *      which produces a fresh VRFCoordinatorV2_5Mock at a different
+     *      address than the one in setUp(). Comparing them would always fail.
+     */
+    function testCreateSubscriptionUsingConfig() public {
+        // Arrange / Act
+        CreateSubscription createSubscription = new CreateSubscription();
+        (uint256 subId,) = createSubscription.createSubscriptionUsingConfig();
+
+        // Assert; a valid subscription ID is non-zero.
+        assert(subId > 0);
+    }
 }
