@@ -145,4 +145,37 @@ contract InteractionsTest is Test {
         assert(subId > 0);
         assertEq(coordinator, vrfCoordinator);
     }
+
+    /* ─────────────────────────────────────────────
+     * FundSubscription Tests
+     * ─────────────────────────────────────────────
+     */
+
+    /**
+     * @dev Verifies that fundSubscription() successfully deposits LINK into
+     *      a subscription, leaving it with a non-zero balance.
+     *
+     *      Flow:
+     *        1. Create a fresh subscription on the existing coordinator.
+     *        2. Fund it via FundSubscription.
+     *        3. Query the coordinator for the subscription balance.
+     *        4. Assert the balance is greater than zero.
+     *
+     *      On Anvil, fundSubscription() calls the mock coordinator directly
+     *      — no real LINK transfer occurs.
+     */
+    function testFundSubscriptionUsingConfig() public {
+        // Arrange — create a fresh subscription to fund.
+        CreateSubscription createSubscription = new CreateSubscription();
+        (uint256 subId,) = createSubscription.createSubscription(vrfCoordinator, account);
+
+        // Act
+        FundSubscription fundSubscription = new FundSubscription();
+        fundSubscription.fundSubscription(vrfCoordinator, subId, linkToken, account);
+
+        // Assert; verify the subscription balance is non-zero after funding.
+        // getSubscription() returns (balance, nativeBalance, reqCount, owner, consumers).
+        (uint96 balance,,,,) = VRFCoordinatorV2_5Mock(vrfCoordinator).getSubscription(subId);
+        assert(balance > 0);
+    }
 }
