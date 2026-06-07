@@ -317,11 +317,11 @@ contract InteractionsTest is Test {
             config.entranceFee, config.interval, config.vrfCoordinator, config.gasLane, subId, config.callBackGasLimit
         );
 
-        // Act — call addConsumerUsingConfig() on the fresh Raffle.
+        // Act; call addConsumerUsingConfig() on the fresh Raffle.
         AddConsumer addConsumer = new AddConsumer();
         addConsumer.addConsumer(address(localRaffle), config.vrfCoordinator, subId, config.account);
 
-        // Assert — verify the localRaffle is registered on the same coordinator.
+        // Assert; verify the localRaffle is registered on the same coordinator.
         (,,,, address[] memory consumers) = VRFCoordinatorV2_5Mock(config.vrfCoordinator).getSubscription(subId);
         bool isRegistered = false;
         for (uint256 i = 0; i < consumers.length; i++) {
@@ -330,6 +330,35 @@ contract InteractionsTest is Test {
                 break;
             }
         }
+        assert(isRegistered);
+    }
+
+    /**
+     * @dev Verifies that the Raffle deployed in setUp() is already registered
+     *      as a consumer on its own subscription; confirming deployRaffle()
+     *      calls AddConsumer internally.
+     *
+     *      Flow:
+     *        1. Query the coordinator's consumer list for the subscription
+     *           created during setUp().
+     *        2. Search for the Raffle address.
+     *        3. Assert it was found.
+     */
+    function testRaffleIsRegisteredAsConsumerOnDeployedSubscription() public view {
+        // Query the consumer list for the subscription from setUp().
+        (,,,, address[] memory consumers) = VRFCoordinatorV2_5Mock(vrfCoordinator).getSubscription(subscriptionId);
+
+        // Search the consumers array for the raffle address.
+        bool isRegistered = false;
+        for (uint256 i = 0; i < consumers.length; i++) {
+            if (consumers[i] == address(raffle)) {
+                isRegistered = true;
+                break;
+            }
+        }
+
+        // Assert; deployRaffle() calls AddConsumer internally,
+        // so the Raffle must already be registered after setUp().
         assert(isRegistered);
     }
 }
