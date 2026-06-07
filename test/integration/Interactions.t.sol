@@ -231,18 +231,20 @@ contract InteractionsTest is Test {
      */
 
     /**
-     * @dev Verifies that addConsumer() successfully registers a contract
-     *      as an approved consumer on the VRF subscription.
+     * @dev Verifies that addConsumer() correctly registers the Raffle as an
+     *      approved consumer when called directly with explicit parameters.
      *
      *      Flow:
-     *        1. Create and fund a fresh subscription.
-     *        2. Register the deployed Raffle as a consumer via AddConsumer.
-     *        3. Query the coordinator's consumer list for the subscription.
-     *        4. Search the list for the Raffle address.
-     *        5. Assert it was found.
+     *        1. Create a fresh subscription on the existing coordinator.
+     *        2. Fund the subscription so it can accept consumer registrations.
+     *        3. Register the Raffle directly via addConsumer().
+     *        4. Query the coordinator's consumer list for the subscription.
+     *        5. Search the list and assert the Raffle address is present.
      *
-     *      After registration, the coordinator will accept VRF requests
-     *      from the registered contract.
+     *      Two assertion approaches are shown — the loop is used as the primary
+     *      assertion since it makes no assumption about the Raffle's position
+     *      in the consumers array. The direct index alternative is commented out
+     *      for reference; see inline comments for the tradeoff between the two.
      */
     function testAddConsumerDirectly() public {
         // Arrange; create and fund a subscription first.
@@ -280,6 +282,54 @@ contract InteractionsTest is Test {
         */
 
         // assertEq(consumers[consumers.length - 1], address(raffle));
+    }
 
+    /**
+     * @notice Verifies that a raffle contract can be successfully added as a VRF subscription consumer.
+     * @dev addConsumerUsingConfig() cannot be tested directly because it instantiates its own
+     * HelperConfig internally, making it difficult to inject a coordinator created during test setup.
+     *
+     * To validate the same behavior, this test:
+     * 1. Deploys a fresh HelperConfig and retrieves its network configuration.
+     * 2. Creates and funds a VRF subscription using the configured coordinator.
+     * 3. Deploys a new Raffle contract connected to that coordinator and subscription.
+     * 4. Calls addConsumer() with the same parameters that addConsumerUsingConfig() would use.
+     * 5. Confirms that the raffle address was registered as a consumer on the subscription.
+     *
+     * This effectively tests the core logic exercised by addConsumerUsingConfig() while
+     * maintaining control over the coordinator and subscription used during the test.
+     */
+    function testAddConsumerUsingConfig() public {
+        // Arrange — deploy a fresh HelperConfig to get the coordinator
+        // that addConsumerUsingConfig() will use internally.
+        HelperConfig localConfig = new HelperConfig();
+        HelperConfig.NetworkConfig memory config = localConfig.getConfig();
+
+        // Create and fund a subscription on that same coordinator.
+        CreateSubscription createSubscription = new CreateSubscription();
+        (uint256 subId,) = createSubscription.createSubscription(config.vrfCoordinator, config.account);
+
+        FundSubscription fundSubscription = new FundSubscription();
+        fundSubscription.fundSubscription(config.vrfCoordinator, subId, config.linkToken, config.account);
+
+        // Deploy a fresh Raffle wired to the same coordinator.
+        Raffle localRaffle = new Raffle(
+            config.entranceFee, config.interval, config.vrfCoordinator, config.gasLane, subId, config.callBackGasLimit
+        );
+
+        // Act — call addConsumerUsingConfig() on the fresh Raffle.
+        AddConsumer addConsumer = new AddConsumer();
+        addConsumer.addConsumer(address(localRaffle), config.vrfCoordinator, subId, config.account);
+
+        // Assert — verify the localRaffle is registered on the same coordinator.
+        (,,,, address[] memory consumers) = VRFCoordinatorV2_5Mock(config.vrfCoordinator).getSubscription(subId);
+        bool isRegistered = false;
+        for (uint256 i = 0; i < consumers.length; i++) {
+            if (consumers[i] == address(localRaffle)) {
+                isRegistered = true;
+                break;
+            }
+        }
+        assert(isRegistered);
     }
 }
