@@ -244,7 +244,7 @@ contract InteractionsTest is Test {
      *      After registration, the coordinator will accept VRF requests
      *      from the registered contract.
      */
-    function testAddConsumerUsingConfig() public {
+    function testAddConsumerDirectly() public {
         // Arrange; create and fund a subscription first.
         CreateSubscription createSubscription = new CreateSubscription();
         (uint256 subId,) = createSubscription.createSubscription(vrfCoordinator, account);
@@ -260,7 +260,9 @@ contract InteractionsTest is Test {
         // getSubscription() returns (balance, nativeBalance, reqCount, owner, consumers).
         (,,,, address[] memory consumers) = VRFCoordinatorV2_5Mock(vrfCoordinator).getSubscription(subId);
 
-        // Search the consumers array for the raffle address.
+        // Verify the Raffle address exists somewhere in the consumers array.
+        // The loop makes no assumption about position; it confirms presence regardless
+        // of how many other consumers were registered before or after.
         bool isConsumerRegistered = false;
         for (uint256 i = 0; i < consumers.length; i++) {
             if (consumers[i] == address(raffle)) {
@@ -269,5 +271,15 @@ contract InteractionsTest is Test {
             }
         }
         assert(isConsumerRegistered);
+
+        /* Alternative: check the last entry in the consumers array directly.
+         * addConsumer() appends to the list, so the Raffle is always the last entry.
+         * More concise than the loop above, but fragile — if any consumer is registered
+         * after the Raffle, consumers[consumers.length - 1] will point to that instead
+         * and the assertion will fail even though the Raffle is still registered.
+        */
+
+        // assertEq(consumers[consumers.length - 1], address(raffle));
+
     }
 }
