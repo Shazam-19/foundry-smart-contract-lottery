@@ -669,6 +669,17 @@ contract Raffle is VRFConsumerBaseV2Plus {
     function getLastTimeStamp() external view returns (uint256) {
         return s_lastTimeStamp;
     }
+
+    /**
+     * @notice Returns the Chainlink VRF subscription ID used by this contract.
+     * @dev    Reads from the immutable i_subscriptionId set in the constructor.
+     *         Useful for integration tests and off-chain tools that need to
+     *         verify which subscription is funding this contract's VRF requests.
+     * @return The Chainlink VRF subscription ID.
+     */
+    function getSubscriptionId() external view returns (uint256) {
+        return i_subscriptionId;
+    }
 }
 
 /**
