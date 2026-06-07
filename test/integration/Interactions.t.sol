@@ -121,4 +121,28 @@ contract InteractionsTest is Test {
         // Assert; a valid subscription ID is non-zero.
         assert(subId > 0);
     }
+
+    /**
+     * @dev Verifies that createSubscription() works when called directly
+     *      with explicit parameters rather than going through HelperConfig.
+     *
+     *      Flow:
+     *        1. Instantiate CreateSubscription.
+     *        2. Call createSubscription() with the vrfCoordinator and account
+     *           from setUp() — the same coordinator the raffle is wired to.
+     *        3. Assert the subscription ID is non-zero.
+     *        4. Assert the returned coordinator matches the one passed in.
+     *
+     *      Unlike testCreateSubscriptionUsingConfig(), this test passes the
+     *      coordinator explicitly so the address comparison is valid.
+     */
+    function testCreateSubscriptionDirectly() public {
+        // Arrange / Act
+        CreateSubscription createSubscription = new CreateSubscription();
+        (uint256 subId, address coordinator) = createSubscription.createSubscription(vrfCoordinator, account);
+
+        // Assert; a valid subscription ID is non-zero and coordinator must match config.
+        assert(subId > 0);
+        assertEq(coordinator, vrfCoordinator);
+    }
 }
