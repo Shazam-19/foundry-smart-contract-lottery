@@ -180,6 +180,24 @@ contract InteractionsTest is Test {
     }
 
     /**
+     * @dev Verifies that the subscription created during setUp() is already
+     *      funded — confirming deployRaffle() calls FundSubscription internally.
+     *
+     *      Flow:
+     *        1. Query the coordinator for the subscription balance using
+     *           the subscriptionId read from the deployed Raffle.
+     *        2. Assert the balance is non-zero.
+     */
+    function testDeployedSubscriptionIsFunded() public view {
+        // Query the coordinator directly for the subscription balance.
+        (uint96 balance,,,,) = VRFCoordinatorV2_5Mock(vrfCoordinator).getSubscription(subscriptionId);
+
+        // Assert; deployRaffle() funds the subscription internally,
+        // so the balance must be non-zero after setUp().
+        assert(balance > 0);
+    }
+
+    /**
      * @dev Verifies that funding the same subscription twice accumulates
      *      the balance rather than overwriting it.
      *
