@@ -361,4 +361,48 @@ contract InteractionsTest is Test {
         // so the Raffle must already be registered after setUp().
         assert(isRegistered);
     }
+
+    /* ─────────────────────────────────────────────
+     * Full Pipeline Integration Tests
+     * ─────────────────────────────────────────────
+     */
+
+    /**
+     * @dev Verifies the complete deployment pipeline end-to-end:
+     *      CreateSubscription → FundSubscription → AddConsumer → DeployRaffle.
+     *
+     *      Flow:
+     *        1. Assert the raffle is in OPEN state after deployment.
+     *        2. Assert the subscription ID is non-zero.
+     *        3. Assert the Raffle is in the coordinator's consumer list.
+     *        4. Assert the raffle accepts player entries.
+     *
+     *      This is the highest-level integration test — if this passes,
+     *      the entire deployment pipeline is working correctly.
+     */
+    function testFullDeploymentPipeline() public {
+        // Assert; raffle is in OPEN state (0) after deployment.
+        assertEq(uint256(raffle.getRaffleState()), 0);
+
+        // Assert; subscription ID is non-zero, confirming it was created and assigned.
+        assertTrue(subscriptionId > 0);
+
+        // Assert; raffle is registered as an approved VRF consumer.
+        (,,,, address[] memory consumers) = VRFCoordinatorV2_5Mock(vrfCoordinator).getSubscription(subscriptionId);
+        bool isRegistered = false;
+        for (uint256 i = 0; i < consumers.length; i++) {
+            if (consumers[i] == address(raffle)) {
+                isRegistered = true;
+                break;
+            }
+        }
+        assert(isRegistered);
+
+        // Assert; raffle is functional and accepts entries.
+        address player = makeAddr("player");
+        vm.deal(player, 1 ether);
+        vm.prank(player);
+        raffle.enterRaffle{value: entranceFee}();
+        assertEq(raffle.getPlayer(0), player);
+    }
 }
