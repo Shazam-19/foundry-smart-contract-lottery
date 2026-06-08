@@ -405,4 +405,42 @@ contract InteractionsTest is Test {
         raffle.enterRaffle{value: entranceFee}();
         assertEq(raffle.getPlayer(0), player);
     }
+
+    /**
+     * @dev Verifies that the fully deployed raffle can successfully trigger
+     *      performUpkeep() after the interval has passed — the ultimate
+     *      integration test confirming the VRF subscription, consumer
+     *      registration, and raffle state all work together correctly.
+     *
+     *      Flow:
+     *        1. Enter a player into the raffle.
+     *        2. Warp time past the interval.
+     *        3. Mine a new block.
+     *        4. Call performUpkeep() — should succeed without reverting.
+     *        5. Assert the raffle transitioned to CALCULATING state.
+     *
+     *      If the subscription is not funded or the raffle is not registered
+     *      as a consumer, performUpkeep() would revert here — making this
+     *      the strongest possible integration check.
+     */
+    function testFullyDeployedRaffleCanPerformUpkeep() public {
+        // Arrange; enter a player so the raffle has a balance and participants.
+        address player = makeAddr("player");
+        vm.deal(player, 1 ether);
+        vm.prank(player);
+        raffle.enterRaffle{value: entranceFee}();
+
+        // Warp time past the interval so checkUpkeep() returns true.
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+
+        // Act; performUpkeep() triggers a VRF request and transitions
+        // the raffle to CALCULATING. If the subscription is unfunded or
+        // the raffle is not a registered consumer, this call will revert.
+        raffle.performUpkeep("");
+
+        // Assert; raffle transitioned to CALCULATING state (1),
+        // confirming the VRF request was successfully submitted.
+        assertEq(uint256(raffle.getRaffleState()), 1);
+    }
 }
