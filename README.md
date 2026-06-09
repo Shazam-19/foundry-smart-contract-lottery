@@ -65,6 +65,9 @@ A decentralized raffle contract where users pay an entrance fee for a chance to 
 - 🌐 **Multi-network support** — deploys to Sepolia testnet with real Chainlink infrastructure, or locally on Anvil with auto-deployed VRF and LINK mocks.
 - ⚙️ **Centralised config management** — `HelperConfig.s.sol` resolves all network-specific parameters automatically, keeping deploy scripts clean and portable.
 - 🧪 **Comprehensive test suite** — unit, integration, fuzz, and fork tests using Foundry's `forge-std` framework.
+- 🔗 **Automated VRF subscription lifecycle** — `Interactions.s.sol` provides dedicated scripts to create, fund, and manage Chainlink VRF subscriptions without manual coordinator interaction.
+- 🚀 **Deployment-ready infrastructure** — deployment scripts automatically create and fund subscriptions and register the raffle contract as a VRF consumer when required.
+- ✅ **Verified integration pipeline** — end-to-end integration tests ensure subscription creation, funding, consumer registration, and deployment work together correctly.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -111,13 +114,15 @@ foundry-smart-contract-lottery/
 │   └── Raffle.sol                      # Core raffle contract
 │
 ├── script/
-│   ├── DeployRaffle.s.sol              # Deployment script — deploys and wires everything
+│   ├── DeployRaffle.s.sol              # Full deployment pipeline
 │   ├── HelperConfig.s.sol              # Network config manager (Sepolia + Anvil)
-│   └── Interactions.s.sol             # VRF subscription scripts (Create, Fund, AddConsumer)
+│   └── Interactions.s.sol              # CreateSubscription, FundSubscription, AddConsumer scripts
 │
 ├── test/
 │   ├── unit/
 │   │   └── RaffleTest.t.sol            # Unit and fuzz tests for Raffle.sol
+│   ├── integration/
+│   │   └── InteractionsTest.t.sol      # End-to-end tests for VRF subscription workflows
 │   └── mocks/
 │       └── LinkToken.sol               # Mock LINK token for local Anvil testing
 │
@@ -223,7 +228,7 @@ make deploy-sepolia
 
 ### VRF Subscription Management
 
-These scripts can be run independently if needed:
+These scripts can be run independently or as part of the deployment pipeline. Together they manage the complete Chainlink VRF subscription lifecycle:
 
 **Create a subscription:**
 ```sh
@@ -242,6 +247,14 @@ forge script script/Interactions.s.sol:FundSubscription \
 forge script script/Interactions.s.sol:AddConsumer \
   --rpc-url $SEPOLIA_RPC_URL --broadcast
 ```
+
+**What each script does:**
+
+| Script | Purpose |
+|----------|----------|
+| `CreateSubscription` | Creates a new Chainlink VRF v2.5 subscription and returns its subscription ID |
+| `FundSubscription` | Funds a subscription with LINK (or mock funding on Anvil) |
+| `AddConsumer` | Registers a deployed raffle contract as an approved VRF consumer |
 
 > 💡 Use [openchain.xyz](https://openchain.xyz) to decode function selectors and event signatures when debugging transactions with `cast`.
 
@@ -286,9 +299,22 @@ forge coverage --report debug > coverage.txt
 | Type | Description |
 |------|-------------|
 | **Unit** | Tests individual functions in isolation |
-| **Integration** | Verifies interactions between contracts |
+| **Integration** | Verifies interactions between deployment scripts, VRF subscriptions, and contracts |
 | **Fuzz (Stateless)** | Runs functions with randomized inputs to find edge cases |
 | **Fork** | Tests against a live forked network state |
+
+### Integration Tests
+
+`InteractionsTest.t.sol` validates the complete Chainlink VRF subscription workflow:
+
+1. Creates VRF subscriptions.
+2. Funds subscriptions.
+3. Registers consumers.
+4. Verifies deployed subscriptions are funded.
+5. Confirms consumer registration.
+6. Tests the full deployment pipeline end-to-end.
+
+All integration tests run locally against `VRFCoordinatorV2_5Mock` and mock LINK contracts, requiring no real LINK tokens or testnet access.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -319,7 +345,15 @@ Manages deployment configuration across networks. Automatically resolves the cor
 
 ### `Interactions.s.sol`
 
-Contains three standalone scripts: `CreateSubscription`, `FundSubscription`, and `AddConsumer` — each handling a step of the Chainlink VRF subscription lifecycle.
+Contains three standalone scripts that manage the complete Chainlink VRF subscription lifecycle:
+
+| Script | Description |
+|---------|-------------|
+| `CreateSubscription` | Creates a new VRF subscription through the coordinator |
+| `FundSubscription` | Funds a subscription with LINK or mock funding on local networks |
+| `AddConsumer` | Registers a deployed raffle contract as an approved VRF consumer |
+
+These scripts can be executed independently or automatically through `DeployRaffle.s.sol`.
 
 ### `DeployRaffle.s.sol`
 
@@ -364,7 +398,8 @@ This contract was designed with the following Chainlink VRF security guidelines 
 - [x] `requestId` validation to reject unexpected VRF callbacks
 - [x] Multi-network support (Sepolia + Anvil with mocks)
 - [x] Centralised `HelperConfig` for network-aware deployments
-- [x] Comprehensive test suite (unit, fuzz, fork)
+- [x] Comprehensive test suite (unit, integration, fuzz, fork)
+- [x] Automated VRF subscription lifecycle management scripts
 - [ ] Front-end interface for entering the raffle and tracking results
 - [ ] Support for additional testnets (e.g. Mumbai, Fuji)
 - [ ] ERC-20 token entrance fee support
