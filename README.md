@@ -34,6 +34,8 @@ A decentralized lottery raffle smart contract built with Solidity and Foundry, u
     <li><a href="#contract-overview">Contract Overview</a></li>
     <li><a href="#security-considerations">Security Considerations</a></li>
     <li><a href="#supported-networks">Supported Networks</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#author">Author</a></li>
     <li><a href="#acknowledgments">Acknowledgments</a></li>
@@ -452,13 +454,15 @@ git push origin feature/YourFeature
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+This project is licensed under the MIT License.
+
+See the SPDX license identifiers in the source files for details.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
-## Author(s)
+## Author
 
 **Abdelrahman Sayed**
 
