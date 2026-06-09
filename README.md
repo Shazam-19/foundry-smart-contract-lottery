@@ -10,6 +10,7 @@ A decentralized lottery raffle smart contract built with Solidity and Foundry, u
   <summary>Table of Contents</summary>
   <ol>
     <li><a href="#about-the-project">About The Project</a></li>
+    <li><a href="#features">Features</a></li>
     <li><a href="#how-it-works">How It Works</a></li>
     <li><a href="#built-with">Built With</a></li>
     <li><a href="#project-structure">Project Structure</a></li>
